@@ -18,6 +18,7 @@ This is the setup procedure I followed for this project.
 You need Python to be installed on your device - I had version 3.13.5.
 
 The graphical library I used is **pyglet**. You can install it in the terminal using *pip*, the standard package manager for Python. Install pyglet and update pip below:
+
     pip install --user pyglet
     python -m pip install --upgrade pip
 
