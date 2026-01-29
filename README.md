@@ -31,6 +31,7 @@ Test your installation using these lines. It should not throw errors:
 I used **Visual Studio** and **VSCode** to develop the code.
 
 In order to make the shaders, I had to install **OpenGL**. The Open Graphics Library is a cross-platform APL for vector graphics rendering. We need this for more complex graphics. *Pyglet has OpenGL functionality already, but I wanted to be safe.* To use it with Python, use:
+    
     pip install PyOpenGL
 
 I had to install **GLSL Syntax** for VS Code to apply syntax highlighting to GL Shader Language files. These shaders are essential for this project.
