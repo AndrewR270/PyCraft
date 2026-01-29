@@ -1,3 +1,4 @@
+import math
 import ctypes # allows you to manipulate C types
 import pyglet # provides windowing, game control, and display
 
@@ -6,14 +7,28 @@ pyglet.options["debug_gl"] = False
 
 import pyglet.gl as gl # reference for Open Graphics Library (OpenGL)
 
+import matrix
 import shader
 
+# matrices - when multiplied with a vector, they transform it
+# each vertex in the scene can be represented as a vector from the origin
+# this allows us to transform the scene's vertices in a model matrix.
+# we can transform the scene around the camera in a view matrix.
+# these can be locked into one matrix, the modelview matrix.
+# a projection matrix handles field of view, compressing viewable
+# objects into the screen position. The farther from  the camera, the more
+# objects can be seen, but they must be rendered as smaller.
+# the axis which extends straight out from the camera is the W or depth 
+# component axis. This lets us know which objects are in front of others.
+# ModelView x Projection = ModelViewProjection matrix
+# ModelViewProjection x Vertex vector
+ 
 vertex_positions = [
-    -0.5, 0.5, 1.0,
-    -0.5, -0.5, 1.0,
-    0.5, -0.5, 1.0,
-    0.5, 0.5, 1.0,
-]
+    -0.5, 0.5, 0.0,
+    -0.5, -0.5, 0.0,
+    0.5, -0.5, 0.0,
+    0.5, 0.5, 0.0,
+] 
 
 indices = [
     0, 1, 2, #first triangle
@@ -78,9 +93,46 @@ class Window(pyglet.window.Window):
         #
 
         self.shader = shader.Shader("vert.glsl", "frag.glsl")
+        self.shader_matrix_location = self.shader.find_uniform(b"matrix")
         self.shader.use()
+
+        #
+        # create matrices
+        #
+
+        self.mv_matrix = matrix.Matrix() # ModelView
+        self.p_matrix = matrix.Matrix() # Projection
+
+        # update runs every 60th of a second to increment x
+        # by bits each frame in a draw function
+        self.x = 0
+        pyglet.clock.schedule_interval(self.update, 1.0 / 60)
+
+    def update(self, delta_time):
+        self.x += delta_time
     
     def on_draw(self):
+
+        # create projection matrix
+
+        self.p_matrix.load_identity() # neutral, doesn't transform
+        self.p_matrix.perspective(
+            90, # FOV in degrees
+            float(self.width) / self.height, # aspect ratio
+            0.1, # minimum distance
+            500 # maximum distance
+        )
+
+        # create modelview matrix
+
+        self.mv_matrix.load_identity()
+        self.mv_matrix.translate(0, 0, -1)
+        self.mv_matrix.rotate_2d(self.x, math.sin(self.x / 3 * 2) / 2)
+
+        # modelviewprojection matrix
+
+        mvp_matrix = self.p_matrix * self.mv_matrix
+        self.shader.uniform_matrix(self.shader_matrix_location, mvp_matrix)
 
         # set and clear buffer to specified color
         gl.glClearColor(1.0, 0.5, 1.0, 1.0)
