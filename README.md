@@ -23,6 +23,7 @@ The graphical library I used is **pyglet**. You can install it in the terminal u
     python -m pip install --upgrade pip
 
 Test your installation using these lines. It should not throw errors:
+
     python
     import pyglet
     exit()
