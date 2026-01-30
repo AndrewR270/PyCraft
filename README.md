@@ -30,7 +30,7 @@ Test your installation using these lines. It should not throw errors:
 
 I used **Visual Studio** and **VSCode** to develop the code.
 
-In order to make the shaders, I had to install **OpenGL**. The Open Graphics Library is a cross-platform APL for vector graphics rendering. We need this for more complex graphics. *Pyglet has OpenGL functionality already, but I wanted to be safe.* To use it with Python, use:
+In order to make the shaders, I had to install **OpenGL**. The Open Graphics Library is a cross-platform API for vector graphics rendering. We need this for more complex graphics. *Pyglet has OpenGL functionality already, but I wanted to be safe.* To use it with Python, use:
     
     pip install PyOpenGL
 
