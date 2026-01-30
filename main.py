@@ -9,19 +9,6 @@ import pyglet.gl as gl # reference for Open Graphics Library (OpenGL)
 
 import matrix
 import shader
-
-# matrices - when multiplied with a vector, they transform it
-# each vertex in the scene can be represented as a vector from the origin
-# this allows us to transform the scene's vertices in a model matrix.
-# we can transform the scene around the camera in a view matrix.
-# these can be locked into one matrix, the modelview matrix.
-# a projection matrix handles field of view, compressing viewable
-# objects into the screen position. The farther from  the camera, the more
-# objects can be seen, but they must be rendered as smaller.
-# the axis which extends straight out from the camera is the W or depth 
-# component axis. This lets us know which objects are in front of others.
-# ModelView x Projection = ModelViewProjection matrix
-# ModelViewProjection x Vertex vector
  
 vertex_positions = [
     -0.5, 0.5, 0.0,

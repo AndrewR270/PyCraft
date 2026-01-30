@@ -38,6 +38,31 @@ I had to install **GLSL Syntax** for VS Code to apply syntax highlighting to GL 
 
 ### 2.  How I Explain the Code
 
+In this program, we are essentially rendering **vectors** which run from the origin to a **vertex**. These collections of *vertices* form shapes together. In this program we render Minecraft's squares using two **triangles**, since a triangle *is the simplest planar shape* that can be made, and we verifiably know that *all vertexes in a triangle are co-planar*. This simplifies calculation.
 
+We start with the following to manage the **memory for rendering.** The descriptions come from 
+https://developers-heaven.net/blog/vertex-buffers-and-vertex-arrays-sending-geometry-to-the-gpu/:
+
+- Vertex Array Objects (VAOs): Allow switching between sets of vertex data and attribute configurations.
+- Vertex Buffer Objects (VBOs): Memory regions on the GPU where you store vertex data, such as positions, normals, and texture coordinates.
+- Index Buffer Objects (IBOs): An array of indices that point to vertices in a vertex buffer; allows for reordering and reusing vertex data.
+
+Next, **shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered.
+
+- Vertex Shaders run on each vertex. They control geometry for rasterization, determining which vertices are visible to the camera.
+- Fragment Shaders run on each fragment, a group of pixels created by rasterization. They control colorization.
+
+
+If we want to move our rendered objects in real time, we need to use a **matrix** or **matrices** to modify our vertices.
+This following description of vertices derives from the YouTube tutorial and https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/:
+
+- In rendering, the "camera" does not move - the scene is transformed around the viewport to simulate motion.
+- Each vertex in the scene can be represented as a vector from the origin.
+- We transform the scene's vertices in a model matrix, and can transform the scene around the camera in a view matrix.
+- These can be locked into one matrix, the modelview matrix, which by scaling and moving vertices can simulate motion.
+- A projection matrix handles field of view, compressing viewable  objects into the screen position. The farther from  the camera, the more objects can be seen, but they must be rendered as smaller.
+- A matrix has x, y, and z components to transform a set of vertices and produce motion effects. It also has a fourth component, w. The axis which extends straight out from the camera is the W or depth component axis. This lets us know which objects are in front of others.
+- In OpenGL, matrices are separated by column into the eyzw components.
+- Thus, Projection x ModelView = ModelViewProjection matrix x Vertex vector = 3D Rendering!
 
 ### 3. What I Learned

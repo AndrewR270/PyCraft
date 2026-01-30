@@ -1,12 +1,3 @@
-# an array of indices lists indexes.
-# an array of vertices lists vertex positions.
-# an array of colors holds potential vertex colors.
-# indexes can match vertex positions to their corresponding color.
-
-# Indices = [1,2,3] 
-# Vertices: [(0,0), (1,0), (0,1)]
-# Colors: [(1,0,0), (0,1,0), (0,0,1)]
-
 import ctypes
 import pyglet.gl as gl
 

@@ -1,3 +1,7 @@
+# This file was copied verbatic from obiwac's Github.
+# There was no explanation offered, so I do not have extensive knowledge on it.
+# This is matrix math, meant to create and modify transform and rotation matrices.
+
 import copy
 import math
 
