@@ -122,7 +122,7 @@ class Window(pyglet.window.Window):
         self.shader.uniform_matrix(self.shader_matrix_location, mvp_matrix)
 
         # set and clear buffer to specified color
-        gl.glClearColor(1.0, 0.5, 1.0, 1.0)
+        gl.glClearColor(1.0, 1.0, 1.0, 1.0)
         self.clear()
 
         # render primitive using indexed vertex data
