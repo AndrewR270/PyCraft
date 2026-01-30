@@ -59,7 +59,7 @@ This following description of vertices derives from the YouTube tutorial and htt
 - In rendering, the "camera" does not move - the scene is transformed around the viewport to simulate motion.
 - Each vertex in the scene can be represented as a vector from the origin.
 - We transform the scene's vertices in a model matrix, and transform it around the camera in a view matrix.
-- These can be locked together into the modelview matrix, which by scaling and moving vertices can simulate motion.
+- These are locked together into the modelview matrix, which by scaling and moving vertices simulate motion.
 - A projection matrix handles field of view, compressing viewable  objects into the screen position. The farther from  the camera, the more objects can be seen, but they must be rendered as smaller.
 - A matrix has x, y, and z components to transform a set of vertices and produce motion effects. It also has a fourth component, w. The axis which extends straight out from the camera is the W or depth component axis. This lets us know which objects are in front of others.
 - In OpenGL, matrices are separated by column into the xyzw components.
