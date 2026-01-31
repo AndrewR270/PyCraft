@@ -9,18 +9,8 @@ import pyglet.gl as gl # reference for Open Graphics Library (OpenGL)
 
 import matrix
 import shader
- 
-vertex_positions = [
-    -0.5, 0.5, 0.0,
-    -0.5, -0.5, 0.0,
-    0.5, -0.5, 0.0,
-    0.5, 0.5, 0.0,
-] 
-
-indices = [
-    0, 1, 2, #first triangle
-    0, 2, 3, #second triangle
-]
+import block
+import texture_manager
 
 class Window(pyglet.window.Window):
 
@@ -31,7 +21,24 @@ class Window(pyglet.window.Window):
         super().__init__(**args)
 
         #
-        # create vertex array object (vao)
+        # create blocks
+        #
+
+        self.texture_manager = texture_manager.Texture_manager(16, 16, 256) # texture manager object, w16, h16, 256 textures
+
+        self.grass = block.Block(self.texture_manager, "grass", {"top" : "grass", "bottom" : "dirt", "sides" : "grass_side"} )
+        self.dirt = block.Block(self.texture_manager, "dirt", {"all" : "dirt"})
+        self.cobblestone = block.Block(self.texture_manager, "cobblestone", {"all" : "cobblestone"})
+        self.stone = block.Block(self.texture_manager, "stone", {"all" : "stone"})
+        self.sand = block.Block(self.texture_manager, "sand", {"all" : "sand"})
+        self.log = block.Block(self.texture_manager, "log", {"top": "log_top", "bottom" : "log_top", "sides" : "log_side"})
+        self.planks = block.Block(self.texture_manager, "planks", {"all" : "planks"})
+
+        self.texture_manager.generate_mipmaps()
+
+        #
+        # create vertex array object (vao).
+        # it holds references to the vertex buffers and the index buffer.
         #
 
         self.vao = gl.GLuint(0) # unsigned integer
@@ -43,15 +50,15 @@ class Window(pyglet.window.Window):
         # a buffer object stores an array of unformatted memory.
         #
 
-        self.vbo = gl.GLuint(0) # unsigned integer
+        self.vbo = gl.GLuint(0) # unsigned binary integer
         gl.glGenBuffers(1, ctypes.byref(self.vbo))
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
 
         # initialize the buffer object
         gl.glBufferData(
             gl.GL_ARRAY_BUFFER, # target
-            ctypes.sizeof(gl.GLfloat * len(vertex_positions)), # size
-            (gl.GLfloat * len(vertex_positions)) (*vertex_positions), # data
+            ctypes.sizeof(gl.GLfloat * len(self.grass.vertex_positions)), # size
+            (gl.GLfloat * len(self.grass.vertex_positions)) (*self.grass.vertex_positions), # data
             gl.GL_STATIC_DRAW # usage
         )
         
@@ -63,15 +70,15 @@ class Window(pyglet.window.Window):
         # create index buffer object (ibo)
         #
 
-        self.ibo = gl.GLuint(0) # unsigned integer
+        self.ibo = gl.GLuint(0) # unsigned binary integer
         gl.glGenBuffers(1, self.ibo)
         gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self.ibo)
 
         # initialize the buffer object
         gl.glBufferData(
             gl.GL_ELEMENT_ARRAY_BUFFER, # target
-            ctypes.sizeof(gl.GLuint * len(indices)), # size
-            (gl.GLuint * len(indices)) (*indices), # data
+            ctypes.sizeof(gl.GLuint * len(self.grass.indices)), # size
+            (gl.GLuint * len(self.grass.indices)) (*self.grass.indices), # data
             gl.GL_STATIC_DRAW # usage
         )
 
@@ -113,7 +120,7 @@ class Window(pyglet.window.Window):
         # create modelview matrix
 
         self.mv_matrix.load_identity()
-        self.mv_matrix.translate(0, 0, -1)
+        self.mv_matrix.translate(0, 0, -3) # "Camera" position
         self.mv_matrix.rotate_2d(self.x, math.sin(self.x / 3 * 2) / 2)
 
         # modelviewprojection matrix
@@ -121,14 +128,19 @@ class Window(pyglet.window.Window):
         mvp_matrix = self.p_matrix * self.mv_matrix
         self.shader.uniform_matrix(self.shader_matrix_location, mvp_matrix)
 
-        # set and clear buffer to specified color
-        gl.glClearColor(1.0, 1.0, 1.0, 1.0)
+        #
+        # DRAW SHAPES
+        #
+
+        gl.glEnable(gl.GL_DEPTH_TEST) # Enables depth
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT) # clears depth for scren
+        gl.glClearColor(0.0, 0.0, 0.0, 1.0) # Sets screen color
         self.clear()
 
         # render primitive using indexed vertex data
         gl.glDrawElements(
             gl.GL_TRIANGLES, # type of primitive to render
-            len(indices), # number of indices
+            len(self.grass.indices), # number of indices
             gl.GL_UNSIGNED_INT, # data type of indices
             None # pointer to index array
         )
@@ -140,7 +152,10 @@ class Window(pyglet.window.Window):
 class Game:
     def __init__(self):
         # Had to add "double_buffer = True" to get screen to work.
-        self.config = gl.Config(major_version = 3, double_buffer=True)
+        # A buffer is a region of memory - double buffering renders a new image to the "back"
+        # while displaying the "front" and then switches out, to prevent incomplete renders.
+        # Had to add depth_size = 16 to prevent back faces from rendering over front.
+        self.config = gl.Config(double_buffer=True, major_version=3, minor_version=3, depth_size = 16)
         self.window = Window(config = self.config, width=800, height=600, caption="PyCraft", resizable=True, vsync=False)
         
     def run(self):
