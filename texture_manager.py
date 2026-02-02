@@ -3,10 +3,6 @@ import pyglet
 
 import pyglet.gl as gl
 
-# pass texture sampler to our fragment shader as a uniform
-# amount of textures we can have is tied to the amount of texture units in the GPU
-# texture array - stack textures on top of one another, access different ones using z component
-
 # one instance of the manager is used by all blocks
 class Texture_manager:
     def __init__(self, texture_width, texture_height, max_textures):
@@ -24,12 +20,17 @@ class Texture_manager:
         gl.glGenTextures(1, self.texture_array)
         gl.glBindTexture(gl.GL_TEXTURE_2D_ARRAY, self.texture_array)
 
+        # stop OpenGL from linear interpolation of neighboring pixels, producing blurriness.
+        # instead, we tell OpenGL to select the nearest pixel's color when sampling.
+        gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+
         gl.glTexImage3D(
             gl.GL_TEXTURE_2D_ARRAY, 0, gl.GL_RGBA, # target, level, internal format
             self.texture_width, self.texture_height, self.max_textures, # width, height, depth
             0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, None # border, format, type, pixels
         )
-    
+
+    # generate mipmaps - smaller resolution for further distances 
     def generate_mipmaps(self):
         gl.glGenerateMipmap(gl.GL_TEXTURE_2D_ARRAY)
 
@@ -48,5 +49,3 @@ class Texture_manager:
                 gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, # format, type
                 texture_image.get_data("RGBA", texture_image.width * 4) # pixels (data)
             )
-
-    

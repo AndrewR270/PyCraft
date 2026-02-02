@@ -11,7 +11,7 @@ https://www.youtube.com/playlist?list=PL6_bLxRDFzoKjaa3qCGkwR5L_ouSreaVP.
 2. How I Explain the Code
 3. What I Learned
 
-### 1. Setup and Requirements
+## 1. Setup and Requirements
 
 This is the setup procedure I followed for this project.
 
@@ -36,9 +36,13 @@ In order to make the shaders, I had to install **OpenGL**. The Open Graphics Lib
 
 I had to install **GLSL Syntax** for VS Code to apply syntax highlighting to GL Shader Language files. These shaders are essential for this project.
 
-### 2.  How I Explain the Code
+## 2.  How I Explain the Code
+
+#### Graphics
 
 In this program, we are essentially rendering **vectors** which run from the origin to a **vertex**. These collections of *vertices* form shapes together. In this program we render Minecraft's squares using two **triangles**, since a triangle *is the simplest planar shape* that can be made, and we verifiably know that *all vertexes in a triangle are co-planar*. This simplifies calculation.
+
+#### Memory
 
 We start with the following to manage the **memory for rendering.** The descriptions come from 
 https://developers-heaven.net/blog/vertex-buffers-and-vertex-arrays-sending-geometry-to-the-gpu/:
@@ -47,11 +51,50 @@ https://developers-heaven.net/blog/vertex-buffers-and-vertex-arrays-sending-geom
 - Vertex Buffer Objects (VBOs): Memory regions on the GPU where you store vertex data, such as positions, normals, and texture coordinates.
 - Index Buffer Objects (IBOs): An array of indices that point to vertices in a vertex buffer; allows for reordering and reusing vertex data.
 
+#### Drawing
+
+For example, to draw a square, we need four vertices to load into the vertex buffer object. These vertices are 3-tuples of *x, y, and z coordinates.*
+
+Vertices:
+
+|   x  |   y  |  z  |    Vertex    |
+|------|------|-----|--------------|
+| -0.5 |  0.5 | 0.0 |   Top Left   |
+| -0.5 | -0.5 | 0.0 | Bottom Left  |
+|  0.5 | -0.5 | 0.0 | Bottom Right |
+|  0.5 |  0.5 | 0.0 |  Top Right   |
+
+We will then create a list of indices to draw which *match to our vertices.* This is loaded into the index buffer object.
+
+Indices:
+
+| Index |    Vertex    | Triangle |
+|-------|--------------|----------|
+|   0   |   Top Left   |    ◣    |
+|   1   | Bottom Left  |    ◣    |
+|   2   | Bottom Right |    ◣    |
+|   0   |   Top Left   |    ◥    |
+|   2   | Bottom Right |    ◥    |
+|   3   |  Top Right   |    ◥    |
+
+We can use this command in the **on_draw method** of the Window class to render:
+
+        gl.glDrawElements(gl.GL_TRIANGLES, len(indices), gl.GL_UNSIGNED_INT, None)
+
+Which draws triangles using our buffer data, together producing a square face.
+
+If we want to draw a cube, it means drawing 12 triangles, two for each face. A total of 24 vertices, 4 per face, will need to be defined. The z coordinate will be used in this case.
+
+The vertices and indices to render a cube can be found in *numbers.py*.
+
+#### Shaders
+
 Next, **shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered.
 
 - Vertex Shaders run on each vertex. They control geometry for rasterization, determining which vertices are visible to the camera.
 - Fragment Shaders run on each fragment, a group of pixels created by rasterization. They control colorization.
 
+#### Matrices
 
 If we want to move our rendered objects in real time, we need to use a **matrix** or **matrices** to modify our vertices.
 This following description of vertices derives from the YouTube tutorial and https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/:
@@ -65,4 +108,10 @@ This following description of vertices derives from the YouTube tutorial and htt
 - In OpenGL, matrices are separated by column into the xyzw components.
 - Thus, Projection x ModelView = ModelViewProjection matrix x Vertex vector = 3D Rendering!
 
-### 3. What I Learned
+#### Textures
+
+We will pass a **texture sampler** to our fragment shader. However, the amount of textures we can have is tied to the amount of texture units in the GPU. To solve this, we use a **texture array**. This will stack textures on top of one another in a 3D data storage object. *We access different textures using the z component of the texture array.*
+
+We also generate mipmaps - creating smaller versions of each texture to be used as the distance of the texture from our camera increases.
+
+## 3. What I Learned

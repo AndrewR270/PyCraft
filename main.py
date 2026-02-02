@@ -26,14 +26,16 @@ class Window(pyglet.window.Window):
 
         self.texture_manager = texture_manager.Texture_manager(16, 16, 256) # texture manager object, w16, h16, 256 textures
 
-        self.grass = block.Block(self.texture_manager, "grass", {"top" : "grass", "bottom" : "dirt", "sides" : "grass_side"} )
-        self.dirt = block.Block(self.texture_manager, "dirt", {"all" : "dirt"})
-        self.cobblestone = block.Block(self.texture_manager, "cobblestone", {"all" : "cobblestone"})
-        self.stone = block.Block(self.texture_manager, "stone", {"all" : "stone"})
-        self.sand = block.Block(self.texture_manager, "sand", {"all" : "sand"})
-        self.log = block.Block(self.texture_manager, "log", {"top": "log_top", "bottom" : "log_top", "sides" : "log_side"})
-        self.planks = block.Block(self.texture_manager, "planks", {"all" : "planks"})
+        # create each blocks, passing in the texture manager and a list of faces and associated textures
+        self.grass = block.Block(self.texture_manager, "grass", {"top":"grass", "bottom":"dirt", "sides":"grass_side"} )
+        self.dirt = block.Block(self.texture_manager, "dirt", {"all":"dirt"})
+        self.cobblestone = block.Block(self.texture_manager, "cobblestone", {"all":"cobblestone"})
+        self.stone = block.Block(self.texture_manager, "stone", {"all":"stone"})
+        self.sand = block.Block(self.texture_manager, "sand", {"all":"sand"})
+        self.log = block.Block(self.texture_manager, "log", {"top":"log_top", "bottom":"log_top", "sides":"log_side"})
+        self.planks = block.Block(self.texture_manager, "planks", {"all":"planks"})
 
+        # generate mipmaps for our texture manager's texture
         self.texture_manager.generate_mipmaps()
 
         #
@@ -46,25 +48,49 @@ class Window(pyglet.window.Window):
         gl.glBindVertexArray(self.vao)
 
         #
-        # create vertex buffer array object (vbo).
+        # create vertex position buffer array object (vbo).
         # a buffer object stores an array of unformatted memory.
         #
 
-        self.vbo = gl.GLuint(0) # unsigned binary integer
-        gl.glGenBuffers(1, ctypes.byref(self.vbo))
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
+        self.vertex_position_vbo = gl.GLuint(0) # unsigned binary integer
+        gl.glGenBuffers(1, ctypes.byref(self.vertex_position_vbo))
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vertex_position_vbo)
 
         # initialize the buffer object
+        # use grass block's vertex positions
         gl.glBufferData(
             gl.GL_ARRAY_BUFFER, # target
             ctypes.sizeof(gl.GLfloat * len(self.grass.vertex_positions)), # size
             (gl.GLfloat * len(self.grass.vertex_positions)) (*self.grass.vertex_positions), # data
             gl.GL_STATIC_DRAW # usage
         )
-        
-        # create an array of generic vertex attribute data
+
+        # create an array of generic vertex attribute data.
         gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, 0)
         gl.glEnableVertexAttribArray(0)
+
+        #
+        # create a texture coordinate buffer array object (vbo).
+        # a buffer object stores an array of unformatted memory.
+        #
+
+        self.tex_coord_vbo = gl.GLuint(0) # unsigned binary integer
+        gl.glGenBuffers(1, ctypes.byref(self.tex_coord_vbo))
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.tex_coord_vbo)
+
+        # initialize the buffer object
+        # use grass block's texture coordinates positions
+        gl.glBufferData(
+            gl.GL_ARRAY_BUFFER, # target
+            ctypes.sizeof(gl.GLfloat * len(self.grass.tex_coords)), # size
+            (gl.GLfloat * len(self.grass.tex_coords)) (*self.grass.tex_coords), # data
+            gl.GL_STATIC_DRAW # usage
+        )
+        
+        # create an array of generic vertex attribute data.
+        # we set the initial params to 1 instead of 0 as it is a second attribute.
+        gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, 0)
+        gl.glEnableVertexAttribArray(1)
 
         #
         # create index buffer object (ibo)
@@ -88,6 +114,7 @@ class Window(pyglet.window.Window):
 
         self.shader = shader.Shader("vert.glsl", "frag.glsl")
         self.shader_matrix_location = self.shader.find_uniform(b"matrix")
+        self.shader_sampler_location = self.shader.find_uniform(b"texture_array_sampler")
         self.shader.use()
 
         #
@@ -128,12 +155,21 @@ class Window(pyglet.window.Window):
         mvp_matrix = self.p_matrix * self.mv_matrix
         self.shader.uniform_matrix(self.shader_matrix_location, mvp_matrix)
 
+        # bind textures
+
+        gl.glActiveTexture(gl.GL_TEXTURE0) # first texture unit
+        # bind our texture manager's texture
+        gl.glBindTexture(gl.GL_TEXTURE_2D_ARRAY, self.texture_manager.texture_array)
+        # tell sampler that the texture is bound to the first texture unit
+        gl.glUniform1i(self.shader_sampler_location, 0)
+
+
         #
         # DRAW SHAPES
         #
 
         gl.glEnable(gl.GL_DEPTH_TEST) # Enables depth
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT) # clears depth for scren
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT) # clears depth bits for screen
         gl.glClearColor(0.0, 0.0, 0.0, 1.0) # Sets screen color
         self.clear()
 
