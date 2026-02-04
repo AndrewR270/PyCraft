@@ -170,6 +170,21 @@ This will cast a texture onto our block. To sample the texture at different plac
 
 In our texture manager, this will fix the blurriness caused by the previous implementation. It will stop OpenGL from linear interpolation of neighboring pixels, instead selecting the nearest pixel's color when sampling. *Our block script must change the array of* **tex_coords** *if certain faces need different textures than the rest of the block.*
 
+#### Input
+
+For mouse captures. In __init__ for window:
+
+        self.mouse_captured = False
+
+Then use: 
+
+        #
+        # on_mouse_press - Called when mouse is pressed.
+        #
+        def on_mouse_press(self, x, y, button, modifiers):
+            self.mouse_captured = not self.mouse_captured
+            self.set_exclusive_mouse(self.mouse_captured)
+
 ## 3. Tools Used
 
 - import math
