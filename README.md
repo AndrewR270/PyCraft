@@ -9,7 +9,7 @@ https://www.youtube.com/playlist?list=PL6_bLxRDFzoKjaa3qCGkwR5L_ouSreaVP.
 
 1. Setup and Requirements
 2. How I Explain the Code
-3. What I Learned
+3. Tools Used
 
 ## 1. Setup and Requirements
 
@@ -42,14 +42,16 @@ I had to install **GLSL Syntax** for VS Code to apply syntax highlighting to GL 
 
 In this program, we are essentially rendering **vectors** which run from the origin to a **vertex**. These collections of *vertices* form shapes together. In this program we render Minecraft's squares using two **triangles**, since a triangle *is the simplest planar shape* that can be made, and we verifiably know that *all vertexes in a triangle are co-planar*. This simplifies calculation.
 
+**Vector graphics** create images directly from mathematical computations of geometric shapes. This is exactly what we need for 3D rendering blocks or *voxels*, where the mathematical information of the cubes can be recorded with accuracy. However, since computer monitors use **raster** graphics, where images are created from a set of pixel colors, our *vector graphics* must undergo **rasterization** to convert our mathematical information to a set of pixels.
+
 #### Memory
 
 We start with the following to manage the **memory for rendering.** The descriptions come from 
 https://developers-heaven.net/blog/vertex-buffers-and-vertex-arrays-sending-geometry-to-the-gpu/:
 
-- Vertex Array Objects (VAOs): Allow switching between sets of vertex data and attribute configurations.
-- Vertex Buffer Objects (VBOs): Memory regions on the GPU where you store vertex data, such as positions, normals, and texture coordinates.
-- Index Buffer Objects (IBOs): An array of indices that point to vertices in a vertex buffer; allows for reordering and reusing vertex data.
+- Vertex Array Objects (VAOs): Allow switching between sets of vertex data and attribute configurations. It holds references to the vertex buffers and the index buffer rather than actual data.
+- Vertex Buffer Objects (VBOs): Memory regions on the GPU where you store vertex data, such as positions, normals, and texture coordinates. Multiple VBOs may be used, such as one for vertex positions and one for texture coordinates in this project.
+- Index Buffer Objects (IBOs): An array of indices which map to vertices in a vertex buffer. This allows us to access vertex coordinates with an index, which can be reused if mutiple vectors need to be drawn from a single vertex.
 
 #### Drawing
 
@@ -59,23 +61,39 @@ Vertices:
 
 |   x  |   y  |  z  |    Vertex    |
 |------|------|-----|--------------|
-| -0.5 |  0.5 | 0.0 |   Top Left   |
-| -0.5 | -0.5 | 0.0 | Bottom Left  |
-|  0.5 | -0.5 | 0.0 | Bottom Right |
-|  0.5 |  0.5 | 0.0 |  Top Right   |
+| -0.5 |  0.5 | 1.0 |   Top Left   |
+| -0.5 | -0.5 | 1.0 | Bottom Left  |
+|  0.5 | -0.5 | 1.0 | Bottom Right |
+|  0.5 |  0.5 | 1.0 |  Top Right   |
 
-We will then create a list of indices to draw which *match to our vertices.* This is loaded into the index buffer object.
+We will then create a list of *indices* to draw which *match to our vertices.* This is loaded into the index buffer object. You can see that we are reusing some of the indices, since we have a vertex which serves as the starting point for more than one vector.
 
 Indices:
 
 | Index |    Vertex    | Triangle |
 |-------|--------------|----------|
-|   0   |   Top Left   |    ◣    |
-|   1   | Bottom Left  |    ◣    |
-|   2   | Bottom Right |    ◣    |
-|   0   |   Top Left   |    ◥    |
-|   2   | Bottom Right |    ◥    |
-|   3   |  Top Right   |    ◥    |
+|   0   |   Top Left   |    •     |
+|   1   | Bottom Left  |    ↓     |
+|   2   | Bottom Right | ↓➝ = ◣  |
+|   0   |   Top Left   |    •     |
+|   2   | Bottom Right |    ↘     |
+|   3   |  Top Right   | ↘↑ = ◥  |
+|       |              | ◣+◥ = ⬔ |
+
+Here's what that looks like in Python:
+
+        vertex_positions = [
+            -0.5, 0.5, 1.0,
+            -0.5, -0.5, 1.0,
+            0.5, -0.5, 1.0,
+            0.5, 0.5, 1.0,
+        ]
+
+        indices = [
+            0, 1, 2,  # first triangle
+            0, 2, 3,  # second triangle
+        ]
+
 
 We can use this command in the **on_draw method** of the Window class to render:
 
@@ -87,12 +105,23 @@ If we want to draw a cube, it means drawing 12 triangles, two for each face. A t
 
 The vertices and indices to render a cube can be found in *numbers.py*.
 
-#### Shaders
+There are also some window settings we need to use from pyglet:
 
-Next, **shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered.
+        gl.glEnable(gl.GL_DEPTH_TEST)
+        
+This enables depth.
+        
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
-- Vertex Shaders run on each vertex. They control geometry for rasterization, determining which vertices are visible to the camera.
-- Fragment Shaders run on each fragment, a group of pixels created by rasterization. They control colorization.
+This clears depth bits for the screen.
+
+        double_buffer = True 
+        
+A buffer is a region of memory - double buffering renders a new image to the "back" while displaying the "front" and then switches out, to prevent incomplete renders.
+
+        depth_size = 16
+        
+This will prevent back faces from rendering over front.
 
 #### Matrices
 
@@ -108,10 +137,42 @@ This following description of vertices derives from the YouTube tutorial and htt
 - In OpenGL, matrices are separated by column into the xyzw components.
 - Thus, Projection x ModelView = ModelViewProjection matrix x Vertex vector = 3D Rendering!
 
+#### Shaders
+
+Next, **shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered. Our shaders are *vert.glsl* and *frag.glsl*.
+
+- Vertex Shaders run on each vertex. They control geometry for rasterization, determining which vertices are visible to the camera.
+- Fragment Shaders run on each fragment. This is a group of pixels created by rasterization, which can be colorized or have textures mapped onto them.
+
+We use **shader uniforms**, global variables, to pass data to the shader. An example is our fragment shader, which takes in texture coordinates as a uniform. 
+
 #### Textures
 
 We will pass a **texture sampler** to our fragment shader. However, the amount of textures we can have is tied to the amount of texture units in the GPU. To solve this, we use a **texture array**. This will stack textures on top of one another in a 3D data storage object. *We access different textures using the z component of the texture array.*
 
 We also generate mipmaps - creating smaller versions of each texture to be used as the distance of the texture from our camera increases.
 
-## 3. What I Learned
+The fragment shader uses this to output colors as a *4d vector*. If our fragment shader outputs a value using **out vec4 fragment_color;** then in the **void main(void)** function we may use any of the following:
+
+        fragment_color = vec4(local_position / 2.0 + 0.5, 1.0);
+
+If we pass in local_position then this outputs a multicolor texture.
+
+        fragment_color = texture(texture_array_sampler, vec3(0.5, 0.5, 0.0));
+
+This colors our shape the same color as the middle pixel(s) of a texture. Here we pass in our 3D texture array as *texture_array_sampler*. The vector3 uses 0.5, 0.5, to reference the middle of the texture, and the *Z coordinate of 0.0 is the first texture in the array.*
+
+        fragment_color = texture(texture_array_sampler, interpolated_tex_coords);
+
+This will cast a texture onto our block. To sample the texture at different places depending on where the fragment is on the block face, we use a different texture coordinate for each vertex and interpolate between them for each fragment. For example, from left to right we might go from left:0 to right:1 by increments.
+
+        gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+
+In our texture manager, this will fix the blurriness caused by the previous implementation. It will stop OpenGL from linear interpolation of neighboring pixels, instead selecting the nearest pixel's color when sampling. *Our block script must change the array of* **tex_coords** *if certain faces need different textures than the rest of the block.*
+
+## 3. Tools Used
+
+- import math
+- import ctypes: allows you to manipulate C types
+- import pyglet: provides windowing, game control, and display
+- import pyglet.gl as gl: reference for Open Graphics Library (OpenGL)

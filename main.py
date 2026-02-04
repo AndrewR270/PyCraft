@@ -1,32 +1,34 @@
 import math
-import ctypes # allows you to manipulate C types
-import pyglet # provides windowing, game control, and display
-
-pyglet.options["shadow window"] = False
-pyglet.options["debug_gl"] = False
-
-import pyglet.gl as gl # reference for Open Graphics Library (OpenGL)
-
+import ctypes
+import pyglet
+import pyglet.gl as gl
 import matrix
 import shader
 import block
 import texture_manager
 
+pyglet.options["shadow window"] = False
+pyglet.options["debug_gl"] = False
+
+#
+# Window - Overloads Pyglet Window. Calls super() to initialize the 
+# window and additionally instantiates the necessary graphical 
+# components for our specific rendering purposes.
+#
 class Window(pyglet.window.Window):
 
-    # "__init__" is a constructor.
-    # the tutorial uses the keyword "self" instead of "this".
+    #
+    # __init__ - Constructor, on instantiation of a Window object.
+    #
     def __init__(self, **args): 
-    
-        super().__init__(**args)
+        
+        super().__init__(**args) # creates pyglet window
 
-        #
-        # create blocks
-        #
+        ##### define blocks #########################################
 
-        self.texture_manager = texture_manager.Texture_manager(16, 16, 256) # texture manager object, w16, h16, 256 textures
+        self.texture_manager = texture_manager.Texture_manager(16, 16, 256) # w16, h16, 256 textures
 
-        # create each blocks, passing in the texture manager and a list of faces and associated textures
+        # define each block, pass in texture manager and a list of faces and associated textures
         self.grass = block.Block(self.texture_manager, "grass", {"top":"grass", "bottom":"dirt", "sides":"grass_side"} )
         self.dirt = block.Block(self.texture_manager, "dirt", {"all":"dirt"})
         self.cobblestone = block.Block(self.texture_manager, "cobblestone", {"all":"cobblestone"})
@@ -35,29 +37,23 @@ class Window(pyglet.window.Window):
         self.log = block.Block(self.texture_manager, "log", {"top":"log_top", "bottom":"log_top", "sides":"log_side"})
         self.planks = block.Block(self.texture_manager, "planks", {"all":"planks"})
 
-        # generate mipmaps for our texture manager's texture
         self.texture_manager.generate_mipmaps()
 
-        #
-        # create vertex array object (vao).
-        # it holds references to the vertex buffers and the index buffer.
-        #
 
-        self.vao = gl.GLuint(0) # unsigned integer
+        #### allocate memory ########################################
+
+        #--- VERTEX ARRAY OBJECT (VAO) ------------------------------
+ 
+        self.vao = gl.GLuint(0)
         gl.glGenVertexArrays(1, ctypes.byref(self.vao))
         gl.glBindVertexArray(self.vao)
 
-        #
-        # create vertex position buffer array object (vbo).
-        # a buffer object stores an array of unformatted memory.
-        #
+        #--- VERTEX POSITIONS (VBO) ---------------------------------
 
-        self.vertex_position_vbo = gl.GLuint(0) # unsigned binary integer
+        self.vertex_position_vbo = gl.GLuint(0)
         gl.glGenBuffers(1, ctypes.byref(self.vertex_position_vbo))
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vertex_position_vbo)
 
-        # initialize the buffer object
-        # use grass block's vertex positions
         gl.glBufferData(
             gl.GL_ARRAY_BUFFER, # target
             ctypes.sizeof(gl.GLfloat * len(self.grass.vertex_positions)), # size
@@ -65,42 +61,31 @@ class Window(pyglet.window.Window):
             gl.GL_STATIC_DRAW # usage
         )
 
-        # create an array of generic vertex attribute data.
-        gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, 0)
-        gl.glEnableVertexAttribArray(0)
+        gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, 0) # array of generic vertex data
+        gl.glEnableVertexAttribArray(0) # attribute index 0
 
-        #
-        # create a texture coordinate buffer array object (vbo).
-        # a buffer object stores an array of unformatted memory.
-        #
+        #--- TEXTURE COORDINATES (VBO) ------------------------------
 
-        self.tex_coord_vbo = gl.GLuint(0) # unsigned binary integer
+        self.tex_coord_vbo = gl.GLuint(0)
         gl.glGenBuffers(1, ctypes.byref(self.tex_coord_vbo))
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.tex_coord_vbo)
 
-        # initialize the buffer object
-        # use grass block's texture coordinates positions
         gl.glBufferData(
             gl.GL_ARRAY_BUFFER, # target
             ctypes.sizeof(gl.GLfloat * len(self.grass.tex_coords)), # size
             (gl.GLfloat * len(self.grass.tex_coords)) (*self.grass.tex_coords), # data
             gl.GL_STATIC_DRAW # usage
         )
-        
-        # create an array of generic vertex attribute data.
-        # we set the initial params to 1 instead of 0 as it is a second attribute.
-        gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, 0)
-        gl.glEnableVertexAttribArray(1)
 
-        #
-        # create index buffer object (ibo)
-        #
+        gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, 0) # array of generic vertex data
+        gl.glEnableVertexAttribArray(1) # attribute index 1
 
-        self.ibo = gl.GLuint(0) # unsigned binary integer
+        #--- INDEX BUFFER OBJECT (IBO) ------------------------------
+
+        self.ibo = gl.GLuint(0)
         gl.glGenBuffers(1, self.ibo)
         gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self.ibo)
 
-        # initialize the buffer object
         gl.glBufferData(
             gl.GL_ELEMENT_ARRAY_BUFFER, # target
             ctypes.sizeof(gl.GLuint * len(self.grass.indices)), # size
@@ -108,33 +93,38 @@ class Window(pyglet.window.Window):
             gl.GL_STATIC_DRAW # usage
         )
 
-        #
-        # create shader
-        #
+
+        #### create shaders and matrices ############################
 
         self.shader = shader.Shader("vert.glsl", "frag.glsl")
         self.shader_matrix_location = self.shader.find_uniform(b"matrix")
         self.shader_sampler_location = self.shader.find_uniform(b"texture_array_sampler")
         self.shader.use()
 
-        #
-        # create matrices
-        #
-
         self.mv_matrix = matrix.Matrix() # ModelView
         self.p_matrix = matrix.Matrix() # Projection
 
-        # update runs every 60th of a second to increment x
-        # by bits each frame in a draw function
-        self.x = 0
-        pyglet.clock.schedule_interval(self.update, 1.0 / 60)
 
+        #### rotation animation #####################################
+
+        self.x = 0
+        pyglet.clock.schedule_interval(self.update, 1.0 / 60) # every 60th of a second
+
+    #
+    # update - Runs every scheduled interval to perform some function.
+    #
     def update(self, delta_time):
         self.x += delta_time
     
+    #
+    # on_draw - Called every frame to redraw the contents of our window. 
+    # Responsible for graphical rendering.
+    #
     def on_draw(self):
 
-        # create projection matrix
+        #### initialize matrices ####################################
+        
+        #--- PROJECTION MATRIX --------------------------------------
 
         self.p_matrix.load_identity() # neutral, doesn't transform
         self.p_matrix.perspective(
@@ -144,29 +134,28 @@ class Window(pyglet.window.Window):
             500 # maximum distance
         )
 
-        # create modelview matrix
+        #--- MODEL-VIEW MATRIX --------------------------------------
 
         self.mv_matrix.load_identity()
         self.mv_matrix.translate(0, 0, -3) # "Camera" position
         self.mv_matrix.rotate_2d(self.x, math.sin(self.x / 3 * 2) / 2)
 
-        # modelviewprojection matrix
+        #--- MODEL-VIEW-PROJECTION MATRIX ---------------------------
 
         mvp_matrix = self.p_matrix * self.mv_matrix
         self.shader.uniform_matrix(self.shader_matrix_location, mvp_matrix)
 
-        # bind textures
+        
+        #### bind textures ##########################################
 
         gl.glActiveTexture(gl.GL_TEXTURE0) # first texture unit
         # bind our texture manager's texture
         gl.glBindTexture(gl.GL_TEXTURE_2D_ARRAY, self.texture_manager.texture_array)
         # tell sampler that the texture is bound to the first texture unit
         gl.glUniform1i(self.shader_sampler_location, 0)
-
-
-        #
-        # DRAW SHAPES
-        #
+        
+        
+        #### draw shapes ############################################
 
         gl.glEnable(gl.GL_DEPTH_TEST) # Enables depth
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT) # clears depth bits for screen
@@ -181,22 +170,38 @@ class Window(pyglet.window.Window):
             None # pointer to index array
         )
     
+    #
+    # on_resize - Called when window changes size.
+    #
     def on_resize(self, width, height):
         print(f"Resize {width} * {height}")
         #gl.glViewport(0,0,width,height)
 
+
+#
+# Game - Class which runs the PyCraft simulation. Configures graphical 
+# settings and creates a Window object for displaying graphics.
+#
 class Game:
+    
+    #
+    # __init__ - Constructor, on instantiation of the game.
+    #
     def __init__(self):
-        # Had to add "double_buffer = True" to get screen to work.
-        # A buffer is a region of memory - double buffering renders a new image to the "back"
-        # while displaying the "front" and then switches out, to prevent incomplete renders.
-        # Had to add depth_size = 16 to prevent back faces from rendering over front.
         self.config = gl.Config(double_buffer=True, major_version=3, minor_version=3, depth_size = 16)
         self.window = Window(config = self.config, width=800, height=600, caption="PyCraft", resizable=True, vsync=False)
-        
+
+    #
+    # run - Starts the game.
+    #  
     def run(self):
         pyglet.app.run()
 
+
+#
+# Allows main.py to create an instance of 
+# the Game class and run it.
+#
 if __name__ == "__main__":
     game = Game()
     game.run()
