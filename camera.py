@@ -26,21 +26,29 @@ class Camera:
         self.input = [0, 0, 0] # New Offsets
         self.rotation = [math.tau / 4, 0]
 
+
+    #
+    # update_camera - Modifies position attributes based on current
+    # inputs and current rotation.
+    #
     def update_camera(self, delta_time):
         speed = 7
         multiplier = speed * delta_time
 
-        self.position[1] += self.input[1] * multiplier # Move on Y, easy up and down
+        self.position[1] += self.input[1] * multiplier # Move on Y
 
-        # Move on X and Z, need angle to move since based on rotation
-
-        # check that at least one component is nonzero
-        if self.input[0] or self.input[2]:
-            angle = self.rotation[0] + math.atan2(self.input[2], self.input[0]) - math.tau / 4 # z, x
-            self.position[0] += math.cos(angle) * multiplier # cos theta = adj/hyp
-            self.position[2] += math.sin(angle) * multiplier # sin theta = opp/hyp
+        # Move on X and Z, based on rotation
+        if self.input[0] or self.input[2]: # Check at least one component is nonzero
+            angle = self.rotation[0] + math.atan2(self.input[2], self.input[0]) - math.tau / 4
+            self.position[0] += math.cos(angle) * multiplier
+            self.position[2] += math.sin(angle) * multiplier
 
 
+    #
+    # update_matrices - Creates a modelview matrix for rotating and transforming
+    # the scene relative to our camera; this changes based on our new position
+    # values. Multiplies a projection matrix by it and sends to shader.py.
+    #
     def update_matrices(self):
         
         #### initialize matrices ####################################

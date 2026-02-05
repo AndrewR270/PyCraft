@@ -81,6 +81,24 @@ class Window(pyglet.window.Window):
         gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, 0) # array of generic vertex data
         gl.glEnableVertexAttribArray(1) # attribute index 1
 
+        
+        #--- SHADING VALUES (VBO) -----------------------------------
+
+        self.shading_values_vbo = gl.GLuint(0)
+        gl.glGenBuffers(1, ctypes.byref(self.shading_values_vbo))
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.shading_values_vbo)
+
+        gl.glBufferData(
+            gl.GL_ARRAY_BUFFER, # target
+            ctypes.sizeof(gl.GLfloat * len(self.grass.shading_values)), # size
+            (gl.GLfloat * len(self.grass.shading_values)) (*self.grass.shading_values), # data
+            gl.GL_STATIC_DRAW # usage
+        )
+
+        gl.glVertexAttribPointer(2, 1, gl.GL_FLOAT, gl.GL_FALSE, 0, 0) # array of generic vertex data
+        gl.glEnableVertexAttribArray(2) # attribute index 2
+
+
         #--- INDEX BUFFER OBJECT (IBO) ------------------------------
 
         self.ibo = gl.GLuint(0)

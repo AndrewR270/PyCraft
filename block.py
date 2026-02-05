@@ -15,6 +15,7 @@ class Block:
         self.vertex_positions = numbers.vertex_positions
         self.indices = numbers.indices
         self.tex_coords = numbers.tex_coords.copy() # deep copy to modify texture coords
+        self.shading_values = numbers.shading_values
 
         #
         # set_block_face - Set a specific face of the block to a certain texture.

@@ -22,6 +22,16 @@ tex_coords = [
 	0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
 ]
 
+# Hardcoded shading values for each face.
+shading_values = [
+	0.6, 0.6, 0.6, 0.6, # right = 60%
+	0.6, 0.6, 0.6, 0.6, # left = 60%
+	1.0, 1.0, 1.0, 1.0, # top = 100%
+	0.4, 0.4, 0.4, 0.4, # bottom = 40%
+	0.8, 0.8, 0.8, 0.8, # front = 80%
+	0.8, 0.8, 0.8, 0.8, # back = 80%
+]
+
 # Indexes of draw vertices.
 indices = [
     #TRIANGLE1 | TRIANGLE2|

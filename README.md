@@ -300,11 +300,15 @@ EXAMPLE: Use a scaling matrix to multiply the starting vector (10,10,10,0) by 2 
 - Vertex Shaders run on each vertex. They control geometry for rasterization, determining which vertices are visible to the camera.
 - Fragment Shaders run on each fragment. This is a group of pixels created by rasterization, which can be colorized or have textures mapped onto them.
 
-We use **shader uniforms**, global variables, to pass data to the shader. An example is our fragment shader, which takes in texture coordinates as a uniform. 
+We use **shader uniforms**, global variables, to pass data to the shader. An example is our fragment shader, which takes in texture coordinates as a uniform. Below are examples of using uniforms in our vertex shader, where each *location* is the *memory index of a VBO.*
+
+        layout(location = 0) in vec3 vertex_position; // vertex position attribute
+        layout(location = 1) in vec3 tex_coords; // texture coordinates attribute
+        layout(location = 2) in float shading_values; // shading values attribute
 
 **Important!** Though we handle the mathematical computations of making the matrices in our code, **we actually apply the matrices in the shading process.** We pass our matrix as *uniform* into a **vertex shader**, which is described in the next section.
 
-For example, in the main method of a GL Shader Language (GLSL) file:
+For example, in the main method of our vertex shader:
 
         gl_Position = matrix * vec4(vertex_position, 1.0);
 
@@ -337,6 +341,8 @@ In our texture manager, this will fix the blurriness caused by the previous impl
         gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
 
 It will stop OpenGL from linear interpolation of neighboring pixels, instead selecting the nearest pixel's color when sampling. *Our block script must change the array of* **tex_coords** *if certain faces need different textures than the rest of the block.*
+
+It should also be noted that shading faces of blocks darker or lighter based on sun position is actually hardcoded in Minecraft, since the blocks do not rotate and the sun always faces the same way. The values can be found in *numbers.py*. To apply shading, we *create a VBO* for the shader values and pass it as a uniform to our *vertex shader*, which interpolates them so that they can be applied onto the textures in our *fragment shader*.
 
 ## Input
 
