@@ -139,9 +139,8 @@ Matrices work in OpenGL like this:
 <table>
 <tr><td>
 
-|   |   |   |   |
-|---|---|---|---|
 | a | b | c | d | 
+|---|---|---|---|
 | e | f | g | h |
 | i | j | k | l | 
 | m | n | o | p |
