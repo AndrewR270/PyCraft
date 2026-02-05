@@ -205,6 +205,7 @@ Here are some common types of matrices:
 </td></tr> </table>
 
 EXAMPLE: Use a transform matrix to move the starting coordinates (10,10,10,1) by 10 in the X direction. 
+
 **(X-Offset = 10)**
 
 <table>
@@ -248,6 +249,7 @@ EXAMPLE: Use a transform matrix to move the starting coordinates (10,10,10,1) by
 
 
 EXAMPLE: Use a scaling matrix to multiply the starting vector (10,10,10,0) by 2 in all directions. 
+
 **(X-Scale = 2, Y-Scale = 2, Z-Scale = 2)**
 
 <table>
