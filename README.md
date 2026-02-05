@@ -76,8 +76,8 @@ Indices:
 |   1   | Bottom Left  |    ↓     |
 |   2   | Bottom Right | ↓➝ = ◣  |
 |   0   |   Top Left   |    •     |
-|   2   | Bottom Right |    ↘     |
-|   3   |  Top Right   | ↘↑ = ◥  |
+|   2   | Bottom Right |    ➘     |
+|   3   |  Top Right   | ➘↑ = ◥  |
 |       |              | ◣+◥ = ⬔ |
 
 Here's what that looks like in Python:
