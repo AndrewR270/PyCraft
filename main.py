@@ -74,7 +74,7 @@ class Window(pyglet.window.Window):
     def on_draw(self):
 
         # set and clear buffer to specified color
-        gl.glClearColor(1.0, 0.5, 1.0, 1.0)
+        gl.glClearColor(0.0, 0.0, 0.0, 0.0)
         self.clear()
 
         # render primitive using indexed vertex data
