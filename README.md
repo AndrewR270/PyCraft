@@ -320,19 +320,23 @@ If we pass in local_position then this outputs a multicolor texture:
 
         fragment_color = vec4(local_position / 2.0 + 0.5, 1.0);
 
-This colors our shape the same color as the middle pixel(s) of a texture. Here we pass in our 3D texture array as *texture_array_sampler*. The vector3 uses 0.5, 0.5, to reference the middle of the texture, and the *Z coordinate of 0.0 is the first texture in the array.*:
+This colors our shape the same color as the middle pixel(s) of a texture:
 
         fragment_color = texture(texture_array_sampler, vec3(0.5, 0.5, 0.0));
 
-This will cast a texture onto our block. To sample the texture at different places depending on where the fragment is on the block face, we use a different texture coordinate for each vertex and interpolate between them for each fragment. For example, from left to right we might go from left:0 to right:1 by increments:
+Here we pass in our 3D texture array as *texture_array_sampler*. The vector3 uses 0.5, 0.5, to reference the middle of the texture, and the *Z coordinate of 0.0 is the first texture in the array.*
+
+This will cast a texture onto our block:
 
         fragment_color = texture(texture_array_sampler, interpolated_tex_coords);
 
-In our texture manager, this will fix the blurriness caused by the previous implementation. It will stop OpenGL from linear interpolation of neighboring pixels, instead selecting the nearest pixel's color when sampling:
+To sample the texture at different places depending on where the fragment is on the block face, we use a different texture coordinate for each vertex and interpolate between them for each fragment. For example, from left to right we might go from left:0 to right:1 by increments.
+
+In our texture manager, this will fix the blurriness caused by the previous implementation:
 
         gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
 
-*Our block script must change the array of* **tex_coords** *if certain faces need different textures than the rest of the block.*
+It will stop OpenGL from linear interpolation of neighboring pixels, instead selecting the nearest pixel's color when sampling. *Our block script must change the array of* **tex_coords** *if certain faces need different textures than the rest of the block.*
 
 #### Input
 
