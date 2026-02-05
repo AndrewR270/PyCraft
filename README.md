@@ -38,13 +38,13 @@ I had to install **GLSL Syntax** for VS Code to apply syntax highlighting to GL 
 
 ## 2.  How I Explain the Code
 
-### Graphics
+## Graphics
 
 In this program, we are essentially rendering **vectors** which run from the origin to a **vertex**. These collections of *vertices* form shapes together. In this program we render Minecraft's squares using two **triangles**, since a triangle *is the simplest planar shape* that can be made, and we verifiably know that *all vertexes in a triangle are co-planar*. This simplifies calculation.
 
 **Vector graphics** create images directly from mathematical computations of geometric shapes. This is exactly what we need for 3D rendering blocks or *voxels*, where the mathematical information of the cubes can be recorded with accuracy. However, since computer monitors use **raster** graphics, where images are created from a set of pixel colors, our *vector graphics* must undergo **rasterization** to convert our mathematical information to a set of pixels.
 
-### Memory
+## Memory
 
 We start with the following to manage the **memory for rendering.** The descriptions come from 
 https://developers-heaven.net/blog/vertex-buffers-and-vertex-arrays-sending-geometry-to-the-gpu/:
@@ -53,7 +53,7 @@ https://developers-heaven.net/blog/vertex-buffers-and-vertex-arrays-sending-geom
 - Vertex Buffer Objects (VBOs): Memory regions on the GPU where you store vertex data, such as positions, normals, and texture coordinates. Multiple VBOs may be used, such as one for vertex positions and one for texture coordinates in this project.
 - Index Buffer Objects (IBOs): An array of indices which map to vertices in a vertex buffer. This allows us to access vertex coordinates with an index, which can be reused if mutiple vectors need to be drawn from a single vertex.
 
-### Drawing
+## Drawing
 
 For example, to draw a square, we need four vertices to load into the vertex buffer object. These vertices are 3-tuples of *x, y, and z coordinates.*
 
@@ -123,7 +123,7 @@ A buffer is a region of memory - double buffering renders a new image to the "ba
         
 This will prevent back faces from rendering over front.
 
-### Matrices
+## Matrices
 
 If we want to move our rendered objects in real time, we need to use a **matrix** or **matrices** to modify our vertices.
 This following description of vertices derives from the YouTube tutorial and https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/:
@@ -293,7 +293,7 @@ EXAMPLE: Use a scaling matrix to multiply the starting vector (10,10,10,0) by 2 
 
 **The code for the matrices can be found in matrix.py.**
 
-### Shaders
+## Shaders
 
 **Shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered. Our shaders are *vert.glsl* and *frag.glsl*.
 
@@ -308,7 +308,7 @@ For example, in the main method of a GL Shader Language (GLSL) file:
 
         gl_Position = matrix * vec4(vertex_position, 1.0);
 
-### Textures
+## Textures
 
 We will pass a **texture sampler** to our fragment shader. However, the amount of textures we can have is tied to the amount of texture units in the GPU. To solve this, we use a **texture array**. This will stack textures on top of one another in a 3D data storage object. *We access different textures using the z component of the texture array.*
 
@@ -338,20 +338,83 @@ In our texture manager, this will fix the blurriness caused by the previous impl
 
 It will stop OpenGL from linear interpolation of neighboring pixels, instead selecting the nearest pixel's color when sampling. *Our block script must change the array of* **tex_coords** *if certain faces need different textures than the rest of the block.*
 
-#### Input
+## Input
 
-For mouse captures. In __init__ for window:
+Adjusting our matrices and applying them to our vertices in a shader program will transform the scene. Our **Camera** object in *camera.py* will handle matrix updates. Our changes to the matrices are recorded in *input*, a list of 3 offsets: [X,Y,Z].
 
-        self.mouse_captured = False
+### Position
 
-Then use: 
+*Position* is a list of 3 coordinates: [X, Y, Z] for left/right, up/down, forward/backward.
 
-        #
-        # on_mouse_press - Called when mouse is pressed.
-        #
-        def on_mouse_press(self, x, y, button, modifiers):
-            self.mouse_captured = not self.mouse_captured
-            self.set_exclusive_mouse(self.mouse_captured)
+- The **Z-Axis** is forward and backward. *+Z* = forward, *-Z* = backward.
+- The **X-Axis** is left and right. *+X* = right, *-X* = left.
+- The **Y-Axis** is up and down. *+Y* = up, *-Y* = down.
+
+### Rotation
+
+*Rotation* uses only 2 coordinates: [X, Y] for left/right rotation and up/down rotation.
+
+- Tau (τ) = 2π. **One τ is a full rotation**. When rotation is 0, we face +X (right), and when it is τ/4, we turn one-quarter left to face +Z (forward). This handles looking left to right on the XZ plane. *By default, we face to τ/4.*
+- To look up and down on the YZ plane, we cannot look farther down than -τ/4 (straight down) or farther up than τ/4 (straight up).
+
+To capture rotation changes, we use *pyglet Window* functions for mouse input:
+
+        def on_mouse_motion(self, x, y, delta_x, delta_y):
+            if self.mouse_captured:
+                sensitivity = 0.004
+                self.camera.rotation[0] -= delta_x * sensitivity # left/right
+                self.camera.rotation[1] += delta_y * sensitivity # up.down
+                # ensure y rotation does not exceed quarter from normal in either direction
+                self.camera.rotation[1] = max(-math.tau/4, min(math.tau/4, self.camera.rotation[1]))
+
+
+### Movement
+
+Moving on the X and Z axis **requires us to know what angle we are facing**. Facing τ/4 means we only change the Z coordinate if we move forward, while facing 0 means we only change the X coordinate if we move forward. However, most of the time we will not be facing directly at the Z or X axis - facing in the middle of the X and Z axes (τ/8) means that if we move forward, we have to modify both coordinates.
+
+**We have to use trigonometry here.** The angle theta **(θ)** to the +X axis will be used when translating our matrices on the XZ plane. Movement on the Y axis is strictly up and down and is *not affected by angle.*
+
+- We use our **X rotation** to find out where we are facing when moving forward.
+- We use a special function, atan2, if we want to move forward and sideways as well while facing our current angle. 
+- **atan2** stands for arc tangent 2. The trigonometric function tan θ = Z/X. To get the angle θ, we need θ = atan(Z/X). To ensure that a negative measure of Z and X does not cancel out to point in the positive direction, we use atan2, a piecewise function, instead of regular atan.
+- Our angle comes out to rotation[0] + atan2(input[2], input[0]) -τ/4.
+- It means the rotation on the X axis (left/right) plus the angle to +X we create while moving on X, Z, or both at the same time. We subtract τ/4, since to face forward we had to add τ/4 elsewhere.
+
+To **modify position**, we need to **add inputs** according to the **current angle** on the plane.
+
+        position[1] += self.input[1] * multiplier # Y axis
+        position[0] += math.cos(angle) * multiplier # X axis
+        position[2] += math.sin(angle) * multiplier # Z axis
+
+This will modify our position accordingly depending on what changes we are inputting and what angle we are facing.
+
+We monitor the actual inputs, once again, using *pyglet Window* functions like so:
+
+        def on_key_press(self, key, modifiers):
+            if not self.mouse_captured: return
+            if key == pyglet.window.key.D or key == pyglet.window.key.RIGHT: self.camera.input[0] += 1 # RIGHT
+            elif key == pyglet.window.key.A or key == pyglet.window.key.LEFT: self.camera.input[0] -= 1 # LEFT
+            elif key == pyglet.window.key.W or key == pyglet.window.key.UP: self.camera.input[2] += 1 # FORWARD
+            elif key == pyglet.window.key.S or key == pyglet.window.key.DOWN: self.camera.input[2] -= 1 # BACK
+            elif key == pyglet.window.key.SPACE or key == pyglet.window.key.ENTER: self.camera.input[1] += 1 # UP
+            elif key == pyglet.window.key.LSHIFT or key == pyglet.window.key.RSHIFT: self.camera.input[1] -= 1 # DOWN
+
+To stop movement, make sure to use def on_key_release and invert the addition and subtraction.
+
+### Modifying Matrices
+
+**IMPORTANT!** To achieve the first person effect, we must **rotate the scene before transforming it.** This is because our player movement takes place relative to the direction we are facing. We do this in the modelview matrix:
+
+        self.mv_matrix.rotate_2d(-(self.rotation[0] - math.tau/4), self.rotation[1])
+        self.mv_matrix.translate(-self.position[0], -self.position[1], self.position[2])
+
+And then multiply our projection matrix by the result:
+
+        mvp_matrix = self.p_matrix * self.mv_matrix
+
+Before finally applying it to our shader in *shader.py*.
+
+        self.shader.uniform_matrix(self.shader_matrix_location, mvp_matrix)
 
 ## 3. Tools Used
 

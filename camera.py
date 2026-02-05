@@ -1,9 +1,18 @@
 import math
 import matrix
 
+#
+# Camera - Responsible for handling matrices in order to transform
+# the scene around our viewport. It does not actually render anything;
+# that is the job of a Window object in main.py.
+#
 class Camera:
 
+    #
+    # __init__ - Constructor, on instantiation of a Camera object.
+    #
     def __init__(self, shader, width, height):
+
         self.width = width
         self.height = height
 
@@ -13,14 +22,8 @@ class Camera:
         self.shader = shader
         self.shader_matrix_location = self.shader.find_uniform(b"matrix")
 
-        # Tau = 2pi. +Z = forward, +X = right.
-        # +X = 0 Tau or Tau, +Z = Tau / 4.
-        # Y rotation is in radians. +Y = up.
-
-        # camera variables
-
-        self.input = [0, 0, 0]
-        self.position = [0, 0, -3]
+        self.position = [0, 0, -3] # Current Position
+        self.input = [0, 0, 0] # New Offsets
         self.rotation = [math.tau / 4, 0]
 
     def update_camera(self, delta_time):
@@ -34,14 +37,6 @@ class Camera:
         # check that at least one component is nonzero
         if self.input[0] or self.input[2]:
             angle = self.rotation[0] + math.atan2(self.input[2], self.input[0]) - math.tau / 4 # z, x
-            # - math.tau/4 makes our angle 0 when facing forward, since we technically set it to math.tau/4
-            # to begin with.
-
-            # tan theta = opp/adj, or z/x. theta = atan(opp/adj).
-            # atan2 allows us to get negative angles, since if x and z are both negative, we
-            # should point behind, but we would get a positive angle instead since neg/neg = pos.
-            # atan2 is a piecewise function that gives us the correct angle.
-
             self.position[0] += math.cos(angle) * multiplier # cos theta = adj/hyp
             self.position[2] += math.sin(angle) * multiplier # sin theta = opp/hyp
 
@@ -62,14 +57,9 @@ class Camera:
 
         #--- MODEL-VIEW MATRIX --------------------------------------
 
-        # negative because we are moving scene around the camera and not other way around
         self.mv_matrix.load_identity()
-
-        # x rotation faces +Z or tau/4 by default. When rotation is 0, this is the case.
-        self.mv_matrix.rotate_2d(-(self.rotation[0] - math.tau/4), self.rotation[1]) # We do not want to tilt our camera sideways on Z.
-        self.mv_matrix.translate(-self.position[0], -self.position[1], self.position[2]) # "Camera" position
-
-        # Note! Rotating the scene before translation is 1st person. Translating before rotation is an "orbit effect".
+        self.mv_matrix.rotate_2d(-(self.rotation[0] - math.tau/4), self.rotation[1])
+        self.mv_matrix.translate(-self.position[0], -self.position[1], self.position[2])
 
         #--- MODEL-VIEW-PROJECTION MATRIX ---------------------------
 
