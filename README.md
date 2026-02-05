@@ -38,13 +38,13 @@ I had to install **GLSL Syntax** for VS Code to apply syntax highlighting to GL 
 
 ## 2.  How I Explain the Code
 
-#### Graphics
+### Graphics
 
 In this program, we are essentially rendering **vectors** which run from the origin to a **vertex**. These collections of *vertices* form shapes together. In this program we render Minecraft's squares using two **triangles**, since a triangle *is the simplest planar shape* that can be made, and we verifiably know that *all vertexes in a triangle are co-planar*. This simplifies calculation.
 
 **Vector graphics** create images directly from mathematical computations of geometric shapes. This is exactly what we need for 3D rendering blocks or *voxels*, where the mathematical information of the cubes can be recorded with accuracy. However, since computer monitors use **raster** graphics, where images are created from a set of pixel colors, our *vector graphics* must undergo **rasterization** to convert our mathematical information to a set of pixels.
 
-#### Memory
+### Memory
 
 We start with the following to manage the **memory for rendering.** The descriptions come from 
 https://developers-heaven.net/blog/vertex-buffers-and-vertex-arrays-sending-geometry-to-the-gpu/:
@@ -53,7 +53,7 @@ https://developers-heaven.net/blog/vertex-buffers-and-vertex-arrays-sending-geom
 - Vertex Buffer Objects (VBOs): Memory regions on the GPU where you store vertex data, such as positions, normals, and texture coordinates. Multiple VBOs may be used, such as one for vertex positions and one for texture coordinates in this project.
 - Index Buffer Objects (IBOs): An array of indices which map to vertices in a vertex buffer. This allows us to access vertex coordinates with an index, which can be reused if mutiple vectors need to be drawn from a single vertex.
 
-#### Drawing
+### Drawing
 
 For example, to draw a square, we need four vertices to load into the vertex buffer object. These vertices are 3-tuples of *x, y, and z coordinates.*
 
@@ -123,30 +123,188 @@ A buffer is a region of memory - double buffering renders a new image to the "ba
         
 This will prevent back faces from rendering over front.
 
-#### Matrices
+### Matrices
 
 If we want to move our rendered objects in real time, we need to use a **matrix** or **matrices** to modify our vertices.
 This following description of vertices derives from the YouTube tutorial and https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/:
 
-- In rendering, the "camera" does not move - the scene is transformed around the viewport to simulate motion.
-- Each vertex in the scene can be represented as a vector from the origin.
-- We transform the scene's vertices in a model matrix, and transform it around the camera in a view matrix.
-- These are locked together into the modelview matrix, which by scaling and moving vertices simulate motion.
-- A projection matrix handles field of view, compressing viewable  objects into the screen position. The farther from  the camera, the more objects can be seen, but they must be rendered as smaller.
-- A matrix has x, y, and z components to transform a set of vertices and produce motion effects. It also has a fourth component, w. The axis which extends straight out from the camera is the W or depth component axis. This lets us know which objects are in front of others.
-- In OpenGL, matrices are separated by column into the xyzw components.
-- Thus, Projection x ModelView = ModelViewProjection matrix x Vertex vector = 3D Rendering!
+A matrix has x, y, and z components to transform a set of vertices and produce motion effects. It also has a fourth component, w. If w is 0, then the coordinates represent a direction. If w is 1, it is a position in the world space. In OpenGL, matrices are separated by column into the xyzw components.
 
-#### Shaders
+In rendering, the "camera" does not move - **the scene is transformed around the viewport** to simulate motion. We transform the scene's vertices in a *model matrix*, and transform it around the camera in a view *matrix*. These are locked together into the modelview matrix, which by **scaling and moving vertices simulate motion.** A *projection matrix* handles field of view, compressing viewable objects into the screen position. The farther from  the camera, the more objects can be seen, but they must be rendered as smaller.
 
-Next, **shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered. Our shaders are *vert.glsl* and *frag.glsl*.
+To sum it up, Projection (FOV) x ModelView (Scene-Camera) = ModelViewProjection. ModelViewProjection x a Vertex vector = 3D Movement!
+
+Matrices work in OpenGL like this:
+
+<table>
+<tr><td>
+
+|   |   |   |   |
+|---|---|---|---|
+| a | b | c | d | 
+| e | f | g | h |
+| i | j | k | l | 
+| m | n | o | p |
+
+</td><td>×</td><td>
+
+|   |
+|---|
+| x |
+| y |
+| z |
+| w |
+
+</td><td>=</td><td>
+
+|   |
+|---|
+| ax + by + cz + dw | 
+| ex + fy + gz + hw |
+| ix + jy + kz + lw | 
+| mx + ny + oz + pw |
+
+</td></tr> </table>
+
+Here are some common types of matrices:
+
+<table>
+<tr><th>Identity Matrix</th><th>Translation Matrix</th><th>Scaling Matrix</th></tr>
+<tr>
+<td>Often used as the default value of a new matrix, this simply multiplies all existing coordinates in a vector or position by 1.</td>
+<td>Used to transform a vector or position by moving it a set amount. Useful when moving shapes across the screen. An identity matrix is just a translation matrix with an offset of 0 for X, Y, and Z.</td>
+<td>Can scale a vector or position up or down, to make it larger or smaller. Useful in depth rendering when a rendered shapes moves closer or farther in relation to the player.</td>
+</tr>
+<tr><td>
+
+|   |   |   |   |
+|---|---|---|---|
+| 1 | 0 | 0 | 0 | 
+| 0 | 1 | 0 | 0 |
+| 0 | 0 | 1 | 0 | 
+| 0 | 0 | 0 | 1 |
+
+</td><td>
+
+|   |   |   |   |
+|---|---|---|---|
+| 1 | 0 | 0 | X | 
+| 0 | 1 | 0 | Y |
+| 0 | 0 | 1 | Z | 
+| 0 | 0 | 0 | 1 |
+
+</td><td>
+
+|   |   |   |   |
+|---|---|---|---|
+| X | 0 | 0 | 0 | 
+| 0 | Y | 0 | 0 |
+| 0 | 0 | Z | 0 | 
+| 0 | 0 | 0 | 1 |
+
+</td></tr> </table>
+
+EXAMPLE: Use a transform matrix to move the starting coordinates (10,10,10,1) by 10 in the X direction. **(X-Offset = 10)**
+
+<table>
+<tr><td>
+
+|   |   |   |   |
+|---|---|---|---|
+| 1 | 0 | 0 | 10 | 
+| 0 | 1 | 0 | 0 |
+| 0 | 0 | 1 | 0 | 
+| 0 | 0 | 0 | 1 |
+
+</td><td>×</td><td>
+
+|   |
+|---|
+| 10 |
+| 10 |
+| 10 |
+| 1 |
+
+</td><td>=</td><td>
+
+|   |
+|---|
+| 1×10 + 0 + 0 + 10×1 | 
+| 0 + 1×10 + 0 + 0 |
+| 0 + 0 + 1×10 + 0 | 
+| 0 + 0 + 0 + 1×1 |
+
+</td><td>=</td><td>
+
+|   |
+|---|
+| 20 |
+| 10 |
+| 10 |
+| 1 |
+
+</td></tr> </table>
+
+
+EXAMPLE: Use a scaling matrix to multiply the starting vector (10,10,10,0) by 2 in all directions. **(X-Scale = 2, Y-Scale = 2, Z-Scale = 2)**
+
+<table>
+<tr><td>
+
+|   |   |   |   |
+|---|---|---|---|
+| 2 | 0 | 0 | 0 | 
+| 0 | 2 | 0 | 0 |
+| 0 | 0 | 2 | 0 | 
+| 0 | 0 | 0 | 1 |
+
+</td><td>×</td><td>
+
+|   |
+|---|
+| 10 |
+| 10 |
+| 10 |
+| 0 |
+
+</td><td>=</td><td>
+
+|   |
+|---|
+| 2×10 + 0 + 0 + 0 | 
+| 0 + 2×10 + 0 + 0 |
+| 0 + 0 + 2×10 + 0 | 
+| 0 + 0 + 0 + 1×0 |
+
+</td><td>=</td><td>
+
+|   |
+|---|
+| 20 |
+| 20 |
+| 20 |
+| 0 |
+
+</td></tr> </table>
+
+**The code for the matrices can be found in matrix.py.**
+
+**Important!** Though we handle the mathematical computations of making the matrices in our code, **we actually apply the matrices in the shading process.** We pass our matrix as *uniform* into a **vertex shader**, which is described in the next section.
+
+For example, in the main method of a GL Shader Language (GLSL) file:
+
+        gl_Position = matrix * vec4(vertex_position, 1.0);
+
+### Shaders
+
+**Shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered. Our shaders are *vert.glsl* and *frag.glsl*.
 
 - Vertex Shaders run on each vertex. They control geometry for rasterization, determining which vertices are visible to the camera.
 - Fragment Shaders run on each fragment. This is a group of pixels created by rasterization, which can be colorized or have textures mapped onto them.
 
 We use **shader uniforms**, global variables, to pass data to the shader. An example is our fragment shader, which takes in texture coordinates as a uniform. 
 
-#### Textures
+### Textures
 
 We will pass a **texture sampler** to our fragment shader. However, the amount of textures we can have is tied to the amount of texture units in the GPU. To solve this, we use a **texture array**. This will stack textures on top of one another in a 3D data storage object. *We access different textures using the z component of the texture array.*
 
