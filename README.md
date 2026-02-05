@@ -204,7 +204,8 @@ Here are some common types of matrices:
 
 </td></tr> </table>
 
-EXAMPLE: Use a transform matrix to move the starting coordinates (10,10,10,1) by 10 in the X direction. **(X-Offset = 10)**
+EXAMPLE: Use a transform matrix to move the starting coordinates (10,10,10,1) by 10 in the X direction. 
+**(X-Offset = 10)**
 
 <table>
 <tr><td>
@@ -246,7 +247,8 @@ EXAMPLE: Use a transform matrix to move the starting coordinates (10,10,10,1) by
 </td></tr> </table>
 
 
-EXAMPLE: Use a scaling matrix to multiply the starting vector (10,10,10,0) by 2 in all directions. **(X-Scale = 2, Y-Scale = 2, Z-Scale = 2)**
+EXAMPLE: Use a scaling matrix to multiply the starting vector (10,10,10,0) by 2 in all directions. 
+**(X-Scale = 2, Y-Scale = 2, Z-Scale = 2)**
 
 <table>
 <tr><td>
@@ -289,12 +291,6 @@ EXAMPLE: Use a scaling matrix to multiply the starting vector (10,10,10,0) by 2 
 
 **The code for the matrices can be found in matrix.py.**
 
-**Important!** Though we handle the mathematical computations of making the matrices in our code, **we actually apply the matrices in the shading process.** We pass our matrix as *uniform* into a **vertex shader**, which is described in the next section.
-
-For example, in the main method of a GL Shader Language (GLSL) file:
-
-        gl_Position = matrix * vec4(vertex_position, 1.0);
-
 ### Shaders
 
 **Shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered. Our shaders are *vert.glsl* and *frag.glsl*.
@@ -303,6 +299,12 @@ For example, in the main method of a GL Shader Language (GLSL) file:
 - Fragment Shaders run on each fragment. This is a group of pixels created by rasterization, which can be colorized or have textures mapped onto them.
 
 We use **shader uniforms**, global variables, to pass data to the shader. An example is our fragment shader, which takes in texture coordinates as a uniform. 
+
+**Important!** Though we handle the mathematical computations of making the matrices in our code, **we actually apply the matrices in the shading process.** We pass our matrix as *uniform* into a **vertex shader**, which is described in the next section.
+
+For example, in the main method of a GL Shader Language (GLSL) file:
+
+        gl_Position = matrix * vec4(vertex_position, 1.0);
 
 ### Textures
 
