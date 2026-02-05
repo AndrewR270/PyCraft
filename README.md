@@ -318,6 +318,8 @@ We will pass a **texture sampler** to our fragment shader. However, the amount o
 
 We also generate mipmaps - creating smaller versions of each texture to be used as the distance of the texture from our camera increases.
 
+### Using Texture Data
+
 The fragment shader uses this to output colors as a *4d vector*. If our fragment shader outputs a value using **out vec4 fragment_color;** then in the **void main(void)** function we may use any of the following.
 
 If we pass in local_position then this outputs a multicolor texture:
@@ -341,6 +343,8 @@ In our texture manager, this will fix the blurriness caused by the previous impl
         gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
 
 It will stop OpenGL from linear interpolation of neighboring pixels, instead selecting the nearest pixel's color when sampling. *Our block script must change the array of* **tex_coords** *if certain faces need different textures than the rest of the block.*
+
+### Shading Faces
 
 It should also be noted that shading faces of blocks darker or lighter based on sun position is actually hardcoded in Minecraft, since the blocks do not rotate and the sun always faces the same way. The values can be found in *numbers.py*. To apply shading, we *create a VBO* for the shader values and pass it as a uniform to our *vertex shader*, which interpolates them so that they can be applied onto the textures in our *fragment shader*.
 
