@@ -8,6 +8,7 @@ import block
 import texture_manager
 import camera
 import chunk
+import world
 
 pyglet.options["shadow window"] = False
 pyglet.options["debug_gl"] = False
@@ -26,26 +27,9 @@ class Window(pyglet.window.Window):
         
         super().__init__(**args) # creates pyglet window
 
-        ##### define blocks #########################################
+        #### create world ###########################################
 
-        self.texture_manager = texture_manager.Texture_manager(16, 16, 256) # w16, h16, 256 textures
-
-        # define each block, pass in texture manager and a list of faces and associated textures
-        self.grass = block.Block(self.texture_manager, "grass", {"top":"grass", "bottom":"dirt", "sides":"grass_side"} )
-        self.dirt = block.Block(self.texture_manager, "dirt", {"all":"dirt"})
-        self.cobblestone = block.Block(self.texture_manager, "cobblestone", {"all":"cobblestone"})
-        self.stone = block.Block(self.texture_manager, "stone", {"all":"stone"})
-        self.sand = block.Block(self.texture_manager, "sand", {"all":"sand"})
-        self.log = block.Block(self.texture_manager, "log", {"top":"log_top", "bottom":"log_top", "sides":"log_side"})
-        self.planks = block.Block(self.texture_manager, "planks", {"all":"planks"})
-
-        self.texture_manager.generate_mipmaps()
-
-        #### create chunks ##########################################
-
-        self.chunks = {} # dictionary: key = coord tuple, value = chunk at coords
-        self.chunks[(0,0,0)] = chunk.Chunk((0,0,0))
-        self.chunks[(0,0,0)].update_mesh(self.grass)
+        self.world = world.World()
 
         #### create shaders #########################################
 
@@ -53,10 +37,9 @@ class Window(pyglet.window.Window):
         self.shader_sampler_location = self.shader.find_uniform(b"texture_array_sampler")
         self.shader.use()
 
-        #### rotation animation #####################################
+        #### set window settings ####################################
 
-        #self.x = 0
-        pyglet.clock.schedule_interval(self.update, 1.0 / 60) # every 60th of a second
+        pyglet.clock.schedule_interval(self.update, 1.0 / 60) # framerate = 60fps
         self.mouse_captured = False
 
         #### camera setup ###########################################
@@ -82,7 +65,7 @@ class Window(pyglet.window.Window):
 
         gl.glActiveTexture(gl.GL_TEXTURE0) # first texture unit
         # bind our texture manager's texture
-        gl.glBindTexture(gl.GL_TEXTURE_2D_ARRAY, self.texture_manager.texture_array)
+        gl.glBindTexture(gl.GL_TEXTURE_2D_ARRAY, self.world.texture_manager.texture_array)
         # tell sampler that the texture is bound to the first texture unit
         gl.glUniform1i(self.shader_sampler_location, 0)
         
@@ -93,8 +76,7 @@ class Window(pyglet.window.Window):
         gl.glClearColor(0.0, 0.0, 0.0, 1.0) # Sets screen color
         self.clear()
 
-        for chunk_position in self.chunks:
-            self.chunks[chunk_position].draw()
+        self.world.draw()
     
     #
     # on_resize - Called when window changes size.

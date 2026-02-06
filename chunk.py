@@ -7,7 +7,7 @@ CHUNK_LENGTH = 16
 
 class Chunk:
 
-    def __init__(self, chunk_position):
+    def __init__(self, world, chunk_position):
 
         self.chunk_position = chunk_position
 
@@ -16,6 +16,13 @@ class Chunk:
             self.chunk_position[1] * CHUNK_HEIGHT,
             self.chunk_position[2] * CHUNK_LENGTH
         )
+
+        self.world = world
+
+        self.blocks = [[[0 # block number
+            for z in range (CHUNK_LENGTH)]
+            for y in range (CHUNK_LENGTH)]
+            for x in range (CHUNK_WIDTH)]
 
         self.has_mesh = False
         self.mesh_vertex_positions = []
@@ -53,7 +60,7 @@ class Chunk:
         gl.glGenBuffers(1, self.ibo)
 
 
-    def update_mesh(self, block):
+    def update_mesh(self):
         self.has_mesh = True
         self.mesh_vertex_positions = []
         self.mesh_index_counter = 0
@@ -67,39 +74,45 @@ class Chunk:
         for local_x in range(CHUNK_WIDTH): # 0 to 15
             for local_y in range(CHUNK_HEIGHT): # 0 to 15
                 for local_z in range(CHUNK_LENGTH): # 0 to 15
-                    x,y,z = (
-                        self.position[0] + local_x, # location of chunk + x offset in chunk
-                        self.position[1] + local_y, # location of chunk + y offset in chunk
-                        self.position[2] + local_z, # location of chunk + z offset in chunk
-                    )
 
-                    vertex_positions = block.vertex_positions.copy()
+                    block_number = self.blocks[local_x][local_y][local_z]
 
-                    # Loop through each vertex in our cube. Each of the 24 vertices has x,y,z
-                    # Add our coordinate offsets depending on what block is in the chunk.
-                    for i in range(24):
-                        vertex_positions[i * 3 + 0] += x
-                        vertex_positions[i * 3 + 1] += y
-                        vertex_positions[i * 3 + 2] += z
+                    if block_number: # check if air
+                        block = self.world.block_types[block_number]
 
-                    self.mesh_vertex_positions.extend(vertex_positions) # add vertex positions of our block to mesh
+                        x,y,z = (
+                            self.position[0] + local_x, # location of chunk + x offset in chunk
+                            self.position[1] + local_y, # location of chunk + y offset in chunk
+                            self.position[2] + local_z, # location of chunk + z offset in chunk
+                        )
 
-                    indices = block.indices.copy()
+                        vertex_positions = block.vertex_positions.copy()
 
-                    # There are 6 indexes per face, since 2 triangles of 3 vertices are drawn.
-                    # Multiplied by 6 faces, this is 36 indices.
-                    # In our chunk, we have one giant set of vertices. 
-                    # There are 24 different unique vertices in the 36.
-                    # So, for every block, we add 24 * block number to all the vertices.
-                    # This is so multiple blocks do not share the same vertices.
-                    for i in range(36):
-                        indices[i] += self.mesh_index_counter
+                        # Loop through each vertex in our cube. Each of the 24 vertices has x,y,z
+                        # Add our coordinate offsets depending on what block is in the chunk.
+                        for i in range(24):
+                            vertex_positions[i * 3 + 0] += x
+                            vertex_positions[i * 3 + 1] += y
+                            vertex_positions[i * 3 + 2] += z
 
-                    self.mesh_indices.extend(indices)
-                    self.mesh_index_counter += 24
+                        self.mesh_vertex_positions.extend(vertex_positions) # add vertex positions of our block to mesh
 
-                    self.mesh_tex_coords.extend(block.tex_coords) # tex coords are same
-                    self.mesh_shading_values.extend(block.shading_values) # shading values are same
+                        indices = block.indices.copy()
+
+                        # There are 6 indexes per face, since 2 triangles of 3 vertices are drawn.
+                        # Multiplied by 6 faces, this is 36 indices.
+                        # In our chunk, we have one giant set of vertices. 
+                        # There are 24 different unique vertices in the 36.
+                        # So, for every block, we add 24 * block number to all the vertices.
+                        # This is so multiple blocks do not share the same vertices.
+                        for i in range(36):
+                            indices[i] += self.mesh_index_counter
+
+                        self.mesh_indices.extend(indices)
+                        self.mesh_index_counter += 24
+
+                        self.mesh_tex_coords.extend(block.tex_coords) # tex coords are same
+                        self.mesh_shading_values.extend(block.shading_values) # shading values are same
 
 
         #### pash mesh data to gpu ##################################
