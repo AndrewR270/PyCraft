@@ -7,6 +7,7 @@ import shader
 import block
 import texture_manager
 import camera
+import chunk
 
 pyglet.options["shadow window"] = False
 pyglet.options["debug_gl"] = False
@@ -40,78 +41,11 @@ class Window(pyglet.window.Window):
 
         self.texture_manager.generate_mipmaps()
 
+        #### create chunks ##########################################
 
-        #### allocate memory ########################################
-
-        #--- VERTEX ARRAY OBJECT (VAO) ------------------------------
- 
-        self.vao = gl.GLuint(0)
-        gl.glGenVertexArrays(1, ctypes.byref(self.vao))
-        gl.glBindVertexArray(self.vao)
-
-        #--- VERTEX POSITIONS (VBO) ---------------------------------
-
-        self.vertex_position_vbo = gl.GLuint(0)
-        gl.glGenBuffers(1, ctypes.byref(self.vertex_position_vbo))
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vertex_position_vbo)
-
-        gl.glBufferData(
-            gl.GL_ARRAY_BUFFER, # target
-            ctypes.sizeof(gl.GLfloat * len(self.grass.vertex_positions)), # size
-            (gl.GLfloat * len(self.grass.vertex_positions)) (*self.grass.vertex_positions), # data
-            gl.GL_STATIC_DRAW # usage
-        )
-
-        gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, 0) # array of generic vertex data
-        gl.glEnableVertexAttribArray(0) # attribute index 0
-
-        #--- TEXTURE COORDINATES (VBO) ------------------------------
-
-        self.tex_coord_vbo = gl.GLuint(0)
-        gl.glGenBuffers(1, ctypes.byref(self.tex_coord_vbo))
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.tex_coord_vbo)
-
-        gl.glBufferData(
-            gl.GL_ARRAY_BUFFER, # target
-            ctypes.sizeof(gl.GLfloat * len(self.grass.tex_coords)), # size
-            (gl.GLfloat * len(self.grass.tex_coords)) (*self.grass.tex_coords), # data
-            gl.GL_STATIC_DRAW # usage
-        )
-
-        gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 0, 0) # array of generic vertex data
-        gl.glEnableVertexAttribArray(1) # attribute index 1
-
-        
-        #--- SHADING VALUES (VBO) -----------------------------------
-
-        self.shading_values_vbo = gl.GLuint(0)
-        gl.glGenBuffers(1, ctypes.byref(self.shading_values_vbo))
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.shading_values_vbo)
-
-        gl.glBufferData(
-            gl.GL_ARRAY_BUFFER, # target
-            ctypes.sizeof(gl.GLfloat * len(self.grass.shading_values)), # size
-            (gl.GLfloat * len(self.grass.shading_values)) (*self.grass.shading_values), # data
-            gl.GL_STATIC_DRAW # usage
-        )
-
-        gl.glVertexAttribPointer(2, 1, gl.GL_FLOAT, gl.GL_FALSE, 0, 0) # array of generic vertex data
-        gl.glEnableVertexAttribArray(2) # attribute index 2
-
-
-        #--- INDEX BUFFER OBJECT (IBO) ------------------------------
-
-        self.ibo = gl.GLuint(0)
-        gl.glGenBuffers(1, self.ibo)
-        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self.ibo)
-
-        gl.glBufferData(
-            gl.GL_ELEMENT_ARRAY_BUFFER, # target
-            ctypes.sizeof(gl.GLuint * len(self.grass.indices)), # size
-            (gl.GLuint * len(self.grass.indices)) (*self.grass.indices), # data
-            gl.GL_STATIC_DRAW # usage
-        )
-
+        self.chunks = {} # dictionary: key = coord tuple, value = chunk at coords
+        self.chunks[(0,0,0)] = chunk.Chunk((0,0,0))
+        self.chunks[(0,0,0)].update_mesh(self.grass)
 
         #### create shaders #########################################
 
@@ -133,6 +67,7 @@ class Window(pyglet.window.Window):
     # update - Runs every scheduled interval to perform some function.
     #
     def update(self, delta_time):
+        print(f"FPS: {1.0/delta_time}")
         if not self.mouse_captured: self.camera.input = [0,0,0]
         self.camera.update_camera(delta_time)
     
@@ -151,7 +86,6 @@ class Window(pyglet.window.Window):
         # tell sampler that the texture is bound to the first texture unit
         gl.glUniform1i(self.shader_sampler_location, 0)
         
-        
         #### draw shapes ############################################
 
         gl.glEnable(gl.GL_DEPTH_TEST) # Enables depth
@@ -159,13 +93,8 @@ class Window(pyglet.window.Window):
         gl.glClearColor(0.0, 0.0, 0.0, 1.0) # Sets screen color
         self.clear()
 
-        # render primitive using indexed vertex data
-        gl.glDrawElements(
-            gl.GL_TRIANGLES, # type of primitive to render
-            len(self.grass.indices), # number of indices
-            gl.GL_UNSIGNED_INT, # data type of indices
-            None # pointer to index array
-        )
+        for chunk_position in self.chunks:
+            self.chunks[chunk_position].draw()
     
     #
     # on_resize - Called when window changes size.
