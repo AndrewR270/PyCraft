@@ -7,11 +7,12 @@ https://www.youtube.com/playlist?list=PL6_bLxRDFzoKjaa3qCGkwR5L_ouSreaVP.
 
 ## Table of Contents
 
-1. Setup and Requirements
+0. Setup and Requirements
+1. Files in this Program
 2. How I Explain the Code
 3. Tools Used
 
-## 1. Setup and Requirements
+## 0. Setup and Requirements
 
 This is the setup procedure I followed for this project.
 
@@ -36,13 +37,63 @@ In order to make the shaders, I had to install **OpenGL**. The Open Graphics Lib
 
 I had to install **GLSL Syntax** for VS Code to apply syntax highlighting to GL Shader Language files. These shaders are essential for this project.
 
+## 1. Files in this Program
+
+### main.py
+
+The file from which the game is run. Includes the pyglet Window class, which we use to display our game. When the Window is created, we initialize our game world and shaders. The Window will draw our graphics every frame. We also schedule an interval, here set to 60FPS, at which we check and update our camera position. Also contains the key controls for camera movement.
+
+### world.py
+
+Defines all block types present in the simulation. Creates a dictionary of chunks, the subdivisions of our world which are composed of block groups. Each chunk is mapped to a 3-tuple of (x,y,z) coordinates. Can additionally locate the position of a block in the world space through its position in a specified chunk. Calls the draw method of every chunk when called by main.py.
+
+### chunk.py
+
+Creates a unified mesh composed of a group of blocks. Each chunk mesh has its own Vertex Array Object (VAO), three Vertex Buffer Objects (VBOs) for vertices, textures, and shading, and an Index Buffer Object (IBO) for accessing the vertices. There is an array of values associated with each of the latter four. When the chunk mesh is updated, the chunk iterates through each block, adding its values and information to the corresponsing arrays. Those arrays are then loaded back into the memory objects. Each chunk has a draw function which will render the mesh.
+
+### block.py
+
+Contains the block class, which stores all data related to a block type. Each block has a name, a list of faces and their associated textures, and arrays for vertex positions, vertex indices, texture coordinates, and shading coordinates. A single block can be rendered by loading all of these arrays into the appropriate memory objects. For efficiency, the game instead combines the array information of multiple blocks and then draws them at the same time in a chunk.
+
+### texture_manager.py
+
+Formats all textures present in the game. Creates a 3D texture array of unique textures which are accessible by using the z coordinate as the index of the texture. New blocks interact with the manager to ensure the accessibility of their textures by the shader.
+
+### numbers.py
+
+A list of numerical values for blocks. They include the relative positions of vertices and a list of indices so that vectors can be drawn between them to form the renderable triangles. They also include the relative texture and shading coordinates. These coordinates will ultimately be modified by factoring in the world space position of the block later during the rendering process.
+
+### matrix.py
+
+Contains the implementation of matrices. A matrix is a set of values we can use to transform, scale, or rotate vertices to simulate motion. Our camera uses multiple matrices multiplied together. This will handle moving rendered objects across the screen, updating the render content to include only what is visible to our camera, and creating a depth of field effect. In reality, our camera does not move, but the scene moves around our static viewport. Matrices allow the scene to be transformed in a way that convincingly simulates a first person perspective.
+
+### camera.py
+
+Creates and updates the ModelViewProjection matrix, which is responsible for updating the scene to match our movement. Contains coordinates for position, rotation, and inputs for changing those values every update. The MVP matrix is then passed to the shader to render our graphics with viewing position and angle taken into account.
+
+### shader.py
+
+Creates a shader program which is used for modifying our plainly drawn faces, allowing for color, texture, and movement to be applied to them. The shader program consists of multiple shaders, each of which is linked to a GLSL shader file and contains its own memory buffer. The two shaders in our shader program are a vertex shader for moving vertices and a fragment shader for colorizing screen fragments.
+
+### vert.glsl
+
+Responsible for integrating the matrix to modify the scene's vertices. Takes in all vertex positions, texture coordinates, and shading values, and interpolates between them to allow the fragment shader to color them at their new position.
+
+### frag.glsl
+
+Takes in the interpolated data from the vertex shader outputs new screen colors. It is able to render textures to faces using a texture sampler which is passed to the shader as a uniform variable. 
+
 ## 2.  How I Explain the Code
 
 ## Graphics
 
-In this program, we are essentially rendering **vectors** which run from the origin to a **vertex**. These collections of *vertices* form shapes together. In this program we render Minecraft's squares using two **triangles**, since a triangle *is the simplest planar shape* that can be made, and we verifiably know that *all vertexes in a triangle are co-planar*. This simplifies calculation.
+In this program, we are essentially rendering **vectors** which run from the origin to a **vertex**. These collections of *vertices* form shapes together. In this program we render Minecraft's squares using two **triangles**, since a triangle *is the simplest planar shape* that can be created. We verifiably know that *all vertexes in a triangle are co-planar*. This simplifies calculation.
 
-**Vector graphics** create images directly from mathematical computations of geometric shapes. This is exactly what we need for 3D rendering blocks or *voxels*, where the mathematical information of the cubes can be recorded with accuracy. However, since computer monitors use **raster** graphics, where images are created from a set of pixel colors, our *vector graphics* must undergo **rasterization** to convert our mathematical information to a set of pixels.
+As shown in the image below from Autodesk, it is possible for squares to be rendered using non-planar vertices. The same non-planar, folded square could be rendered using two flat triangles which are more consistent and easier to render.
+
+![Planar and Non-Planar Squares](https://i.sstatic.net/8PiFK.png "Planar and Non-Planar Squares")
+
+**Vector graphics** create images directly from mathematical computations of geometric shapes. This is exactly what we need for 3D rendering blocks or, more accurately, *voxels*, where the mathematical information of the cubes can be recorded with accuracy. However, since computer monitors use **raster** graphics, where images are created from a set of pixel colors, our *vector graphics* must undergo **rasterization** to convert our mathematical information to a set of pixels.
 
 ## Memory
 
@@ -50,7 +101,12 @@ We start with the following to manage the **memory for rendering.** The descript
 https://developers-heaven.net/blog/vertex-buffers-and-vertex-arrays-sending-geometry-to-the-gpu/:
 
 - Vertex Array Objects (VAOs): Allow switching between sets of vertex data and attribute configurations. It holds references to the vertex buffers and the index buffer rather than actual data.
-- Vertex Buffer Objects (VBOs): Memory regions on the GPU where you store vertex data, such as positions, normals, and texture coordinates. Multiple VBOs may be used, such as one for vertex positions and one for texture coordinates in this project.
+- Vertex Buffer Objects (VBOs): Memory regions on the GPU where you store vertex data, such as positions, normals, and texture coordinates. **Multiple VBOs may be used to store different sets of vertex data.** In this project, we use VBOs for:
+
+        - Vertex Positions for rendering shapes
+        - Texture Coordinates for mapping textures onto rendered faces
+        - Shading Values for coloring different faces darker or lighter
+
 - Index Buffer Objects (IBOs): An array of indices which map to vertices in a vertex buffer. This allows us to access vertex coordinates with an index, which can be reused if mutiple vectors need to be drawn from a single vertex.
 
 ## Drawing
@@ -95,33 +151,24 @@ Here's what that looks like in Python:
         ]
 
 
-We can use this command in the **on_draw method** of the Window class to render:
+We can use this command in the **on_draw method** of the Window class to render triangles using our buffer data, together producing a square face.
 
         gl.glDrawElements(gl.GL_TRIANGLES, len(indices), gl.GL_UNSIGNED_INT, None)
 
-Which draws triangles using our buffer data, together producing a square face.
 
-If we want to draw a cube, it means drawing 12 triangles, two for each face. A total of 24 vertices, 4 per face, will need to be defined. The z coordinate will be used in this case.
+If we want to draw a cube, it means drawing 12 triangles, two for each face. A total of 24 vertices, 4 per face, will need to be defined. The vertices and indices to render a cube can be found in *numbers.py*.
 
-The vertices and indices to render a cube can be found in *numbers.py*.
+When creating a 3D-shape, the z coordinate will be used for depth. To render this, we must include the following in the on_draw() method of our Window:
 
-There are also some window settings we need to use from pyglet:
-
-        gl.glEnable(gl.GL_DEPTH_TEST)
-        
-This enables depth.
-        
+        gl.glEnable(gl.GL_DEPTH_TEST) 
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
-This clears depth bits for the screen.
+We also need to include these in our window configurations:
 
         double_buffer = True 
-        
-A buffer is a region of memory - double buffering renders a new image to the "back" while displaying the "front" and then switches out, to prevent incomplete renders.
-
         depth_size = 16
         
-This will prevent back faces from rendering over front.
+A buffer is a region of memory - double buffering renders a new image to the "back" while displaying the "front" and then switches out, to prevent incomplete renders. This will prevent back faces from rendering over front.
 
 ## Matrices
 
@@ -295,10 +342,12 @@ EXAMPLE: Use a scaling matrix to multiply the starting vector (10,10,10,0) by 2 
 
 ## Shaders
 
-**Shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered. Our shaders are *vert.glsl* and *frag.glsl*.
+**Shaders** convert input data into graphics outputs on the GPU. **Rasterization** is the process of converting our vector geometry into a raster image of pixels. Shaders are needed to control how this is rendered. *Though we handle the mathematical computations of making the matrices in our code*, **we actually apply the matrices in the shading process.**
 
-- Vertex Shaders run on each vertex. They control geometry for rasterization, determining which vertices are visible to the camera.
-- Fragment Shaders run on each fragment. This is a group of pixels created by rasterization, which can be colorized or have textures mapped onto them.
+We use two types of shaders:
+
+- **Vertex Shaders** run on each vertex. They **control geometry** for rasterization, determining which vertices are visible to the camera.
+- **Fragment Shaders** run on each fragment. A fragment is a group of pixels created by rasterization. By using this shader, we can take fragments of the screen and **apply color and texture.**
 
 We use **shader uniforms**, global variables, to pass data to the shader. An example is our fragment shader, which takes in texture coordinates as a uniform. Below are examples of using uniforms in our vertex shader, where each *location* is the *memory index of a VBO.*
 
@@ -306,25 +355,25 @@ We use **shader uniforms**, global variables, to pass data to the shader. An exa
         layout(location = 1) in vec3 tex_coords; // texture coordinates attribute
         layout(location = 2) in float shading_values; // shading values attribute
 
-**Important!** Though we handle the mathematical computations of making the matrices in our code, **we actually apply the matrices in the shading process.** We pass our matrix as *uniform* into a **vertex shader**, which is described in the next section.
-
-For example, in the main method of our vertex shader:
+For example, we pass our ModelViewProjection matrix as *uniform* into a **vertex shader** like this:
 
         gl_Position = matrix * vec4(vertex_position, 1.0);
 
 ## Textures
 
-We will pass a **texture sampler** to our fragment shader. However, the amount of textures we can have is tied to the amount of texture units in the GPU. To solve this, we use a **texture array**. This will stack textures on top of one another in a 3D data storage object. *We access different textures using the z component of the texture array.*
+To render our shapes using textures instead of flat colors, we pass a **texture sampler** to our *fragment shader*. However, the amount of textures we can have is tied to the amount of texture units in the GPU. To solve this, we use a **texture array**. This will stack textures on top of one another in a 3D data storage object. *We access different textures using the z component of the texture array.*
 
 We also generate mipmaps - creating smaller versions of each texture to be used as the distance of the texture from our camera increases.
 
 ### Using Texture Data
 
-The fragment shader uses this to output colors as a *4d vector*. If our fragment shader outputs a value using **out vec4 fragment_color;** then in the **void main(void)** function we may use any of the following.
+The fragment shader will output colors as a *4d vector* using **out vec4 fragment_color;** at the top of the file.
+
+In the **void main(void)** function of the shader, we may use any of the following to achieve different fragment shading. This code is in GLSL.
 
 If we pass in local_position then this outputs a multicolor texture:
 
-        fragment_color = vec4(local_position / 2.0 + 0.5, 1.0);
+        fragment_color = vec4(local_position / 2.0 + 0.5, 1.0); // If we pass in local_position then this outputs a multicolor texture
 
 This colors our shape the same color as the middle pixel(s) of a texture:
 
@@ -346,7 +395,7 @@ It will stop OpenGL from linear interpolation of neighboring pixels, instead sel
 
 ### Shading Faces
 
-It should also be noted that shading faces of blocks darker or lighter based on sun position is actually hardcoded in Minecraft, since the blocks do not rotate and the sun always faces the same way. The values can be found in *numbers.py*. To apply shading, we *create a VBO* for the shader values and pass it as a uniform to our *vertex shader*, which interpolates them so that they can be applied onto the textures in our *fragment shader*.
+It should also be noted that shading faces of blocks darker or lighter based on sun position is actually hardcoded in Minecraft, since the blocks do not rotate and the sun always faces the same way. The shader values can be found in *numbers.py*. To apply shading, we *create a VBO* for the shader values and pass it as a uniform to our *vertex shader*, which interpolates them so that they can be applied onto the textures in our *fragment shader*.
 
 ## Input
 

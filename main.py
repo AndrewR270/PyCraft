@@ -50,7 +50,7 @@ class Window(pyglet.window.Window):
     # update - Runs every scheduled interval to perform some function.
     #
     def update(self, delta_time):
-        print(f"FPS: {1.0/delta_time}")
+        #print(f"FPS: {1.0/delta_time}")
         if not self.mouse_captured: self.camera.input = [0,0,0]
         self.camera.update_camera(delta_time)
     
