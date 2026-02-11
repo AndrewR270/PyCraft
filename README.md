@@ -45,7 +45,7 @@ The file from which the game is run. Includes the pyglet Window class, which we 
 
 ### world.py
 
-Defines all block types present in the simulation. Creates a dictionary of chunks, the subdivisions of our world which are composed of block groups. Each chunk is mapped to a 3-tuple of (x,y,z) coordinates. Can additionally locate the position of a block in the world space through its position in a specified chunk. Calls the draw method of every chunk when called by main.py.
+Defines all block types present in the simulation. Creates a dictionary of chunks, the subdivisions of our world which are composed of block groups. Each chunk is mapped to a 3-tuple of (x,y,z) coordinates. Can additionally take the world space coordinates of a block and locate its relative position within its chunk, so that the chunk mesh can be edited. Calls the draw method of selected chunks when called by main.py.
 
 ### chunk.py
 
@@ -474,6 +474,104 @@ And then multiply our projection matrix by the result:
 Before finally applying it to our shader in *shader.py*.
 
         self.shader.uniform_matrix(self.shader_matrix_location, mvp_matrix)
+
+## Render Methods
+
+### Chunks
+
+To render a 16x16x16 group of cubes, our first thought may be to render each of the 4096 cubes individually. However, rendering this many objects is terrible for runtime and leads to a massive drop in framerate. To expedite the process of rendering cubes, we can **group multiple cubes into chunks.** 
+
+Instead of rendering each cube individually, calling gl.DrawElements for every cube, we instead **combine the vertices and indices of our cubes into our VBOs** and **render the whole group of blocks at once.** This is known in Minecraft as a chunk, which is a **mesh** composed of all its constituent cubes.
+
+To implement this, we need to ensure that the rendering in our game works in this way:
+
+1. We create the Chunk class, each instance of which has a VAO, 3 VBOs, and an IBO.
+2. The chunk contains as instance variables mesh_vertex_positions[], mesh_indices[], mesh_tex_coords[], and mesh_shading_values[].
+3. In the Chunk class, an update method should be created every time the mesh is changed (meaning we interact with a block).
+4. We define the height, length, and width of our chunk, and loop through each position in the chunk using these parameters.
+5. As we iterate through each block, the vertices, indices, texture coordinates, and shading values are added to the arrays.
+6. At the end of the update method, the arrays are loaded back into the memory objects.
+7. To render the Chunk, we call gl.DrawElements using our memory objects.
+
+This implementation can be found in *chunk.py*.
+
+**Each chunk contains an array of blocks**, equal in size to *width × height × length*. Iteration goes as follows:
+
+        for local_x in range(CHUNK_WIDTH):
+           for local_y in range(CHUNK_HEIGHT):
+              for local_z in range(CHUNK_LENGTH):
+                 block_number = self.blocks[local_x][local_y][local_z]
+
+However, this array *is not storing blocks themselves,* but rather **the index of the block type at this location.** The indexes of each block type are defined in *world.py*, which will be later explained. If the index does not equal 0, meaning the block is not empty, we can then perform the following operations:
+
+1. Create an instance of a block object and create offsets based on its world position:
+
+        block = self.world.block_types[block_number]
+
+        x,y,z = (
+           self.position[0] + local_x, # location of chunk + x offset in chunk
+           self.position[1] + local_y, # location of chunk + y offset in chunk
+           self.position[2] + local_z, # location of chunk + z offset in chunk
+        )
+
+2. Loop through each vertex in our cube. Each of the 24 vertices has x,y,z coordinates. We add our coordinate offsets to make the relative values of the default vertices match the block's world position:
+  
+        for i in range(24):
+           vertex_positions[i * 3 + 0] += x
+           vertex_positions[i * 3 + 1] += y
+           vertex_positions[i * 3 + 2] += z
+
+           # add vertex positions of our block to mesh
+           self.mesh_vertex_positions.extend(vertex_positions)
+
+3. Update the indices, so that multiple blocks do not use the same vertexes. There are 6 indexes per face, since 2 triangles of 3 vertices each are drawn per face. Multiplied by 6 faces, this is 36 indices. There are 24 different unique vertices in the 36. So, for every block, we add 24 * block number to each of the 36 total vertices:
+
+        indices = block.indices.copy()
+        for i in range(36):
+           indices[i] += self.mesh_index_counter
+           
+        self.mesh_indices.extend(indices)
+        self.mesh_index_counter += 24
+
+4. Add texture coordinates and shading values unchanged:
+
+        self.mesh_tex_coords.extend(block.tex_coords)
+        self.mesh_shading_values.extend(block.shading_values)
+
+At the end of all this, we load:
+- mesh_vertex_positions[] into vertex_position_vbo
+- mesh_tex_coords[] into tex_coords_vbo
+- mesh_shading_values[] into shading_values_vbo
+- mesh_indices[] into our ibo
+
+and our chunk mesh will be **ready to draw**.
+
+### World
+
+**A Minecraft world is composed of multiple chunks.** In game, we set the render distance, which determines how many chunks are drawn at a time. Even though 100 chunks may be loaded at one time, this is still far below the 4096 individual cubes we would have had to render in a 16x16x16 group without the usage of chunks.
+
+We **manage chunks using world.py**, which contains a dictionary of chunk objects. These chunks can be accessed with a 3-tuple of coordinates, such as (0,0,0), which serve as dictionary keys. This keeps **record of the chunk in the world space**.
+
+However, we interact with *blocks*, not chunks, in game. If we take the **position of a block in the world space,** we need to find the **position of the block in its chunk** in order to **modify the mesh**.
+
+We **divide** the block world position by the size of the game's chunks to get the **chunk position**:
+
+        chunk_position = (
+            math.floor(x / chunk.CHUNK_WIDTH),
+            math.floor(y / chunk.CHUNK_HEIGHT),
+            math.floor(z / chunk.CHUNK_LENGTH)
+        )
+
+We take the **modulus** of the block world position and the chunk size to get the **block position in the chunk**:
+
+        local_x = int(x % chunk.CHUNK_WIDTH)
+        local_y = int(y % chunk.CHUNK_HEIGHT)
+        local_z = int(z % chunk.CHUNK_LENGTH)
+
+This allows us to **interact with that specific block** to **edit the chunk mesh** as needed.
+
+To render the game, world.py *calls the draw function on all chunks we want to see in game.*
+
 
 ## 3. Tools Used
 
