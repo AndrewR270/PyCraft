@@ -1,4 +1,5 @@
 import math
+import random
 import chunk
 import block
 import texture_manager
@@ -24,16 +25,24 @@ class World:
         self.texture_manager.generate_mipmaps()
 
         self.chunks = {}
-        self.chunks[(0,0,0)] = chunk.Chunk(self, (0,0,0))
 
-        for x in range(chunk.CHUNK_WIDTH): # 0 to 15
-            for y in range(chunk.CHUNK_HEIGHT): # 0 to 15
-                for z in range(chunk.CHUNK_LENGTH): # 0 to 15
-                    self.chunks[(0,0,0)].blocks[x][y][z] = 1
+        for x in range(8):
+            for z in range(8):
+                chunk_position = (x-4, -1, z-4)
+                current_chunk = chunk.Chunk(self, chunk_position)
 
-        self.chunks[(0,0,0)].update_mesh()
+                for chunk_x in range(chunk.CHUNK_WIDTH):
+                    for chunk_y in range(chunk.CHUNK_LENGTH):
+                        for chunk_z in range(chunk.CHUNK_HEIGHT):
+                            if chunk_y > 13: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice([0, 1])
+                            else: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice([0, 0, 3])
 
-    def get_block_position(self, position):
+                self.chunks[chunk_position] = current_chunk
+
+        for chunk_position in self.chunks:
+            self.chunks[chunk_position].update_mesh()
+
+    def get_block_number(self, position):
         x,y,z = position # location of the block in the world
 
         # Find chunk position based on multiples of chunk size
@@ -53,7 +62,7 @@ class World:
         local_z = int(z % chunk.CHUNK_LENGTH)
 
         #Return the block at the local position in the chunk at the chunk position
-        return self.chunks[chunk_position].block[local_x][local_y][local_z]
+        return self.chunks[chunk_position].blocks[local_x][local_y][local_z]
 
     def draw(self):
         for chunk_position in self.chunks:

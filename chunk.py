@@ -23,6 +23,9 @@ class Chunk:
             for z in range (CHUNK_LENGTH)]
             for y in range (CHUNK_HEIGHT)]
             for x in range (CHUNK_WIDTH)]
+        
+
+        #--- MEMORY OBJECT DATA ARRAYS ------------------------------
 
         self.has_mesh = False
         self.mesh_vertex_positions = []
@@ -68,6 +71,29 @@ class Chunk:
         self.mesh_tex_coords = []
         self.mesh_shading_values = []
 
+        def add_face(face):
+            # update vertices
+            vertex_positions = block.vertex_positions[face].copy()
+            for i in range(4):
+                vertex_positions[i * 3 + 0] += x
+                vertex_positions[i * 3 + 1] += y
+                vertex_positions[i * 3 + 2] += z
+
+            self.mesh_vertex_positions.extend(vertex_positions)
+
+            # update indices
+            indices = [0, 1, 2, 0, 2, 3]
+            for i in range(6):
+                indices[i] += self.mesh_index_counter
+
+            self.mesh_indices.extend(indices)
+            self.mesh_index_counter += 4
+                        
+            # add texture coordinates and shading values unchanged
+            self.mesh_tex_coords.extend(block.tex_coords[face])
+            self.mesh_shading_values.extend(block.shading_values[face])
+
+
         # loop through each block position in chunk
         for local_x in range(CHUNK_WIDTH):
             for local_y in range(CHUNK_HEIGHT):
@@ -86,27 +112,12 @@ class Chunk:
                             self.position[2] + local_z,
                         )
 
-                        # update vertices
-                        vertex_positions = block.vertex_positions.copy()
-                        for i in range(24):
-                            vertex_positions[i * 3 + 0] += x
-                            vertex_positions[i * 3 + 1] += y
-                            vertex_positions[i * 3 + 2] += z
-
-                        self.mesh_vertex_positions.extend(vertex_positions)
-
-                        # update indices
-                        indices = block.indices.copy()
-                        for i in range(36):
-                            indices[i] += self.mesh_index_counter
-
-                        self.mesh_indices.extend(indices)
-                        self.mesh_index_counter += 24
-                        
-                        # add texture coordinates and shading values unchanged
-                        self.mesh_tex_coords.extend(block.tex_coords)
-                        self.mesh_shading_values.extend(block.shading_values)
-
+                        if not self.world.get_block_number((x+1, y, z)): add_face(0) # draw right face
+                        if not self.world.get_block_number((x-1, y, z)): add_face(1) # draw left face
+                        if not self.world.get_block_number((x, y+1, z)): add_face(2) # draw top face
+                        if not self.world.get_block_number((x, y-1, z)): add_face(3) # draw bottom face
+                        if not self.world.get_block_number((x, y, z+1)): add_face(4) # draw front face
+                        if not self.world.get_block_number((x, y, z-1)): add_face(5) # draw back face
 
         #### pash mesh data to gpu ##################################
 

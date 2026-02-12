@@ -572,6 +572,96 @@ This allows us to **interact with that specific block** to **edit the chunk mesh
 
 To render the game, world.py *calls the draw function on all chunks we want to see in game.*
 
+### Optimization
+
+Despite using chunk meshes instead of individual block meshes to render our game, as scale increases the amount of faces we are rendering within the mesh will continue to cause problems. To solve this, **we only render the faces visible to the player.**
+
+This requires some refactoring. Instead of adding the whole block vertex data to the chunk every time we call *update_mesh* on our chunk, we **check to see if the adjacent block is air.** It follows these steps:
+
+- We use the code for finding a block in a chunk from *world.py*. We then use these *chunk-relative coordinates* to **access the blocks[][][]3D-array in the chunk,** which stores a list of all the block type indexes.
+- If the **block type is 0**, then the block is **air**.
+- We **only render faces** on our blocks which are **adjacent to air**, since these are the only faces we can see.
+
+To implement this, we turn our block arrays from *numbers.py* into arrays of arrays, one for each face. For example, the vertex_positions[] array now contains six arrays representing the vertices for each of the 6 block faces. We then update our block positional data and our chunk render data based on **face**, like this:
+
+        def add_face(face):
+            # update vertices
+            vertex_positions = block.vertex_positions[face].copy()
+            for i in range(4):
+                vertex_positions[i * 3 + 0] += x
+                vertex_positions[i * 3 + 1] += y
+                vertex_positions[i * 3 + 2] += z
+
+            self.mesh_vertex_positions.extend(vertex_positions)
+
+            # update indices
+            indices = [0, 1, 2, 0, 2, 3]
+            for i in range(6):
+                indices[i] += self.mesh_index_counter
+
+            self.mesh_indices.extend(indices)
+            self.mesh_index_counter += 4
+                        
+            # add texture coordinates and shading values unchanged
+            self.mesh_tex_coords.extend(block.tex_coords[face])
+            self.mesh_shading_values.extend(block.shading_values[face])
+
+Instead of adding the entire block to our memory object, we can now add the faces we specifically need. In our chunk loop, where we iterate through every block in the chunk, we **call our new add_face** method only if the **adjacent block is empty.** We know the adjacent block is empty if its *block type index is 0*, which the condition **if not** recognizes as invalid:
+
+        if not self.world.get_block_number((x+1, y, z)): add_face(0) # draw right face
+        if not self.world.get_block_number((x-1, y, z)): add_face(1) # draw left face
+        if not self.world.get_block_number((x, y+1, z)): add_face(2) # draw top face
+        if not self.world.get_block_number((x, y-1, z)): add_face(3) # draw bottom face
+        if not self.world.get_block_number((x, y, z+1)): add_face(4) # draw front face
+        if not self.world.get_block_number((x, y, z-1)): add_face(5) # draw back face
+
+This allows us to draw specific faces of our block, improving runtime.
+
+We also need to ensure that textures are drawn on the front of each face only, since we never view the game from inside a block. This code can be added to the *on_draw* method of our Window to accomplish this. A few vertex positions need to be changed into clockwise order for this to work:
+
+        gl.glEnable(gl.GL_CULL_FACE) # Enables back face culling
+        gl.glFinish()
+
+### World Generation Part I
+
+So far, we've only been making a huge cube of blocks as our chunk. To test our world, I followed the tutorial to make a **temporary demonstration world** of 8 x 8 chunks. We place this in **world.py** for now, since that manages our chunks. We begin like so:
+
+        for x in range(8):
+           for z in range(8):
+              chunk_position = (x-4, -1, z-4)
+              current_chunk = chunk.Chunk(self, chunk_position)
+
+8 chunks are created on the x axis, and 8 on the z. Since the world only has 1 layer of chunks, we do not iterate through y. Our camera is also set to start at x = 0, y = 0, and z = 0. As such our chunk_position at x is x-4 to ensure that the first chunk is at -4 and the last is at 4, the same going for z, so that the chunks are created evenly around us. The chunks are at position -1 so we start above them.
+
+We then use this code to set the block types in the **blocks array in each chunk**. 
+
+        for chunk_x in range(chunk.CHUNK_WIDTH):
+           for chunk_y in range(chunk.CHUNK_LENGTH):
+              for chunk_z in range(chunk.CHUNK_HEIGHT):
+                 if chunk_y > 13: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice([0, 1])
+                 else: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice([0, 0, 3])
+
+        self.chunks[chunk_position] = current_chunk
+
+Looping through each position in the blocks array, we detect that if the y coordinate is above 13 (in one of the top 3 layers), the block has an equal chance to be air (0) or grass (1). If it is below 0, it has a 2/3 chance of being air (0) and 1/3 of being cobblestone (3). 
+
+The block types are defined at the beginning of world.py. Their indexes are set according to the order we create and append the blocks to the block_types array.
+
+        self.block_types = [None] #0, air
+        self.block_types.append(block.Block(self.texture_manager, "grass", {"top":"grass", "bottom":"dirt", "sides":"grass_side"})) #1
+        self.block_types.append(block.Block(self.texture_manager, "dirt", {"all":"dirt"})) #2
+        self.block_types.append(block.Block(self.texture_manager, "cobblestone", {"all":"cobblestone"})) #3
+
+After populating our array of chunks, we then update the mesh of each chunk in our chunk array:
+
+        for chunk_position in self.chunks:
+           self.chunks[chunk_position].update_mesh()
+
+And draw the chunks using the same code, but using draw() instead of update_mesh(). The result looks something like this:
+
+![image info](./images/PyCraft_Demo.png)
+
+
 
 ## 3. Tools Used
 

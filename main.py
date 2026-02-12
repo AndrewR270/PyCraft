@@ -73,10 +73,13 @@ class Window(pyglet.window.Window):
 
         gl.glEnable(gl.GL_DEPTH_TEST) # Enables depth
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT) # clears depth bits for screen
+        gl.glEnable(gl.GL_CULL_FACE) # Enables back face culling
         gl.glClearColor(0.0, 0.0, 0.0, 1.0) # Sets screen color
         self.clear()
 
         self.world.draw()
+
+        gl.glFinish()
     
     #
     # on_resize - Called when window changes size.

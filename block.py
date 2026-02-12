@@ -13,7 +13,6 @@ class Block:
 
         self.name = name
         self.vertex_positions = numbers.vertex_positions
-        self.indices = numbers.indices
         self.tex_coords = numbers.tex_coords.copy() # deep copy to modify texture coords
         self.shading_values = numbers.shading_values
 
@@ -21,9 +20,11 @@ class Block:
         # set_block_face - Set a specific face of the block to a certain texture.
         # The texture is passed in as an index in the texture array.
         #
-        def set_block_face(side, texture):
+        def set_block_face(face, texture):
+            self.tex_coords[face] = self.tex_coords[face].copy()
+            
             for vertex in range(4):
-                self.tex_coords[side * 12 + vertex * 3 + 2] = texture
+                self.tex_coords[face][vertex * 3 + 2] = texture
 
         #
         # Load all textures for this block into the texture manager. Runs on each
