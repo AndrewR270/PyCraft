@@ -661,6 +661,10 @@ And draw the chunks using the same code, but using draw() instead of update_mesh
 
 ![image info](./images/PyCraft_Demo.png)
 
+There is a tradeoff with chunk size. The **larger the chunk, the less chunks have to be drawn** at one time, but the **more complicated** it becomes to **change** and update the mesh. A **smaller chunk is easier to update**, but **more have to be drawn**.
+
+As such, big chunks are better for FPS and slower to update, and small chunks are worse for FPS but update faster.
+
 
 
 ## 3. Tools Used
