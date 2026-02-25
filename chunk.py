@@ -112,12 +112,15 @@ class Chunk:
                             self.position[2] + local_z,
                         )
 
-                        if not self.world.get_block_number((x+1, y, z)): add_face(0) # draw right face
-                        if not self.world.get_block_number((x-1, y, z)): add_face(1) # draw left face
-                        if not self.world.get_block_number((x, y+1, z)): add_face(2) # draw top face
-                        if not self.world.get_block_number((x, y-1, z)): add_face(3) # draw bottom face
-                        if not self.world.get_block_number((x, y, z+1)): add_face(4) # draw front face
-                        if not self.world.get_block_number((x, y, z-1)): add_face(5) # draw back face
+                        if block.is_cube:
+                            if not self.world.get_block_number((x+1, y, z)): add_face(0) # draw right face
+                            if not self.world.get_block_number((x-1, y, z)): add_face(1) # draw left face
+                            if not self.world.get_block_number((x, y+1, z)): add_face(2) # draw top face
+                            if not self.world.get_block_number((x, y-1, z)): add_face(3) # draw bottom face
+                            if not self.world.get_block_number((x, y, z+1)): add_face(4) # draw front face
+                            if not self.world.get_block_number((x, y, z-1)): add_face(5) # draw back face
+                        else:
+                            for i in range(len(block.vertex_positions)): add_face(i)
 
         #### pash mesh data to gpu ##################################
 

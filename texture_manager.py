@@ -25,9 +25,13 @@ class Texture_manager:
         gl.glGenTextures(1, self.texture_array)
         gl.glBindTexture(gl.GL_TEXTURE_2D_ARRAY, self.texture_array)
 
-        # stop OpenGL from linear interpolation of neighboring pixels, producing blurriness.
+        # stop OpenGL from linear interpolation of magnified pixels, producing blurriness.
         # instead, we tell OpenGL to select the nearest pixel's color when sampling.
-        gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST) # Magnification
+
+        # stop OpenGL from linear interpolation of far-away pixels, since it cannot handle partial transparency.
+        # instead, we tell OpenGL to select the nearest pixel's color when sampling.
+        gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST) # Minification
 
         gl.glTexImage3D(
             gl.GL_TEXTURE_2D_ARRAY, 0, gl.GL_RGBA, # target, level, internal format

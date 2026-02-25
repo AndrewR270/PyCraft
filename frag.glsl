@@ -9,5 +9,10 @@ in vec3 interpolated_tex_coords;
 in float interpolated_shading_values;
 
 void main(void) {
-    fragment_color = texture(texture_array_sampler, interpolated_tex_coords) * interpolated_shading_values;
+    vec4 texture_color = texture(texture_array_sampler, interpolated_tex_coords);
+    fragment_color = texture_color * interpolated_shading_values;
+
+    if (texture_color.a == 0.0) {
+        discard;
+    }
 }

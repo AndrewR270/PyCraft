@@ -1,4 +1,4 @@
-import numbers
+import models.cube
 
 #
 # Block - Each block in the game is an instantiation of this class.
@@ -9,18 +9,23 @@ class Block:
     #
     # __init__ - Constructor, on instantiation of a Block object.
     #
-    def __init__(self, texture_manager, name = "block", block_face_textures = {"all": "texture"}):
+    def __init__(self, texture_manager, name = "block", block_face_textures = {"all": "texture"}, model = models.cube):
 
         self.name = name
-        self.vertex_positions = numbers.vertex_positions
-        self.tex_coords = numbers.tex_coords.copy() # deep copy to modify texture coords
-        self.shading_values = numbers.shading_values
+        self.vertex_positions = model.vertex_positions
+        self.tex_coords = model.tex_coords.copy() # deep copy to modify texture coords
+        self.shading_values = model.shading_values
+
+        self.transparent = model.transparent
+        self.is_cube = model.is_cube
 
         #
         # set_block_face - Set a specific face of the block to a certain texture.
         # The texture is passed in as an index in the texture array.
         #
         def set_block_face(face, texture):
+            if (face > len(self.tex_coords)-1): return
+
             self.tex_coords[face] = self.tex_coords[face].copy()
             
             for vertex in range(4):

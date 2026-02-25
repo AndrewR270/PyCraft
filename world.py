@@ -3,6 +3,8 @@ import random
 import chunk
 import block
 import texture_manager
+import models.plant
+import models.cactus
 
 class World:
 
@@ -21,6 +23,10 @@ class World:
         self.block_types.append(block.Block(self.texture_manager, "sand", {"all":"sand"})) #5
         self.block_types.append(block.Block(self.texture_manager, "log", {"top":"log_top", "bottom":"log_top", "sides":"log_side"})) #6
         self.block_types.append(block.Block(self.texture_manager, "planks", {"all":"planks"})) #7
+        self.block_types.append(block.Block(self.texture_manager, "daisy", {"all": "daisy"}, models.plant)) #8
+        self.block_types.append(block.Block(self.texture_manager, "rose", {"all": "rose"}, models.plant)) #9
+        self.block_types.append(block.Block(self.texture_manager, "dead_bush", {"all": "dead_bush"}, models.plant)) #10
+        self.block_types.append(block.Block(self.texture_manager, "cactus", {"top":"cactus_top", "bottom":"cactus_bottom", "sides":"cactus_side"}, models.cactus)) #11
 
         self.texture_manager.generate_mipmaps()
 
@@ -32,9 +38,11 @@ class World:
                 current_chunk = chunk.Chunk(self, chunk_position)
 
                 for chunk_x in range(chunk.CHUNK_WIDTH):
-                    for chunk_y in range(chunk.CHUNK_LENGTH):
-                        for chunk_z in range(chunk.CHUNK_HEIGHT):
-                            if chunk_y > 13: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice([0, 1])
+                    for chunk_y in range(chunk.CHUNK_HEIGHT):
+                        for chunk_z in range(chunk.CHUNK_LENGTH):
+                            if chunk_y == 15: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice(
+									[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 9, 10, 11])
+                            elif chunk_y > 13: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice([0, 1])
                             else: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice([0, 0, 3])
 
                 self.chunks[chunk_position] = current_chunk
@@ -62,7 +70,11 @@ class World:
         local_z = int(z % chunk.CHUNK_LENGTH)
 
         #Return the block at the local position in the chunk at the chunk position
-        return self.chunks[chunk_position].blocks[local_x][local_y][local_z]
+        block_number = self.chunks[chunk_position].blocks[local_x][local_y][local_z]
+        block_type = self.block_types[block_number]
+
+        if not block_type or block_type.transparent: return 0
+        else: return block_number
 
     def draw(self):
         for chunk_position in self.chunks:

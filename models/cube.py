@@ -1,4 +1,6 @@
 # Contains values for constructing block models.
+transparent = False
+is_cube = True
 
 # Contains coordinates for block vertices.
 vertex_positions = [
