@@ -59,10 +59,6 @@ Contains the block class, which stores all data related to a block type. Each bl
 
 Formats all textures present in the game. Creates a 3D texture array of unique textures which are accessible by using the z coordinate as the index of the texture. New blocks interact with the manager to ensure the accessibility of their textures by the shader.
 
-### numbers.py
-
-A list of numerical values for blocks. They include the relative positions of vertices and a list of indices so that vectors can be drawn between them to form the renderable triangles. They also include the relative texture and shading coordinates. These coordinates will ultimately be modified by factoring in the world space position of the block later during the rendering process.
-
 ### matrix.py
 
 Contains the implementation of matrices. A matrix is a set of values we can use to transform, scale, or rotate vertices to simulate motion. Our camera uses multiple matrices multiplied together. This will handle moving rendered objects across the screen, updating the render content to include only what is visible to our camera, and creating a depth of field effect. In reality, our camera does not move, but the scene moves around our static viewport. Matrices allow the scene to be transformed in a way that convincingly simulates a first person perspective.
@@ -82,6 +78,22 @@ Responsible for integrating the matrix to modify the scene's vertices. Takes in 
 ### frag.glsl
 
 Takes in the interpolated data from the vertex shader outputs new screen colors. It is able to render textures to faces using a texture sampler which is passed to the shader as a uniform variable. 
+
+### models/cube.py
+
+A list of numerical values for blocks. They include the relative positions of vertices and a list of indices so that vectors can be drawn between them to form the renderable triangles. They also include the relative texture and shading coordinates. These coordinates will ultimately be modified by factoring in the world space position of the block later during the rendering process.
+
+### models/plant.py
+
+A list of numerical values for creating two faces which intersect in a cross pattern, rotated 45 degrees on the xz plane.
+
+### models/cactus.py
+
+Creates a block out of faces which are slightly smaller than in cube.py.
+
+### textures folder
+
+Contains a collection of 16x16 textures which are assigned to different block types in world.py.
 
 ## 2.  How I Explain the Code
 
@@ -156,7 +168,7 @@ We can use this command in the **on_draw method** of the Window class to render 
         gl.glDrawElements(gl.GL_TRIANGLES, len(indices), gl.GL_UNSIGNED_INT, None)
 
 
-If we want to draw a cube, it means drawing 12 triangles, two for each face. A total of 24 vertices, 4 per face, will need to be defined. The vertices and indices to render a cube can be found in *numbers.py*.
+If we want to draw a cube, it means drawing 12 triangles, two for each face. A total of 24 vertices, 4 per face, will need to be defined. The vertices and indices to render a cube can be found in *models/cube.py*.
 
 When creating a 3D-shape, the z coordinate will be used for depth. To render this, we must include the following in the on_draw() method of our Window:
 
@@ -395,7 +407,7 @@ It will stop OpenGL from linear interpolation of neighboring pixels, instead sel
 
 ### Shading Faces
 
-It should also be noted that shading faces of blocks darker or lighter based on sun position is actually hardcoded in Minecraft, since the blocks do not rotate and the sun always faces the same way. The shader values can be found in *numbers.py*. To apply shading, we *create a VBO* for the shader values and pass it as a uniform to our *vertex shader*, which interpolates them so that they can be applied onto the textures in our *fragment shader*.
+It should also be noted that shading faces of blocks darker or lighter based on sun position is actually hardcoded in Minecraft, since the blocks do not rotate and the sun always faces the same way. The shader values can be found in *models/cube.py*. To apply shading, we *create a VBO* for the shader values and pass it as a uniform to our *vertex shader*, which interpolates them so that they can be applied onto the textures in our *fragment shader*.
 
 ## Input
 
@@ -582,7 +594,7 @@ This requires some refactoring. Instead of adding the whole block vertex data to
 - If the **block type is 0**, then the block is **air**.
 - We **only render faces** on our blocks which are **adjacent to air**, since these are the only faces we can see.
 
-To implement this, we turn our block arrays from *numbers.py* into arrays of arrays, one for each face. For example, the vertex_positions[] array now contains six arrays representing the vertices for each of the 6 block faces. We then update our block positional data and our chunk render data based on **face**, like this:
+To implement this, we turn our block arrays from *models/cube.py* into arrays of arrays, one for each face. For example, the vertex_positions[] array now contains six arrays representing the vertices for each of the 6 block faces. We then update our block positional data and our chunk render data based on **face**, like this:
 
         def add_face(face):
             # update vertices
@@ -665,7 +677,73 @@ There is a tradeoff with chunk size. The **larger the chunk, the less chunks hav
 
 As such, big chunks are better for FPS and slower to update, and small chunks are worse for FPS but update faster.
 
+### Adding Different Block Models
 
+Apart from simple cubes, Minecraft also has plants, which are rendered as two intersecting faces, and irregularly sized blocks such as cacti. For each different block model, *we dedicate a new file of index, texture, and shading coordinates* in the models folder.
+
+**Expanding the potential sets of numerical rendering data** means we have to pass the correct file into block.py as an argument, meaning that for every block we create, we can use this constructor with cube.py as a default:
+
+                def __init__(self, texture_manager, name = "block", block_face_textures = {"all": "texture"}, model = models.cube):
+
+and additionally create new variables denoting the type of our block, passed in from each model file:
+
+                self.transparent = model.transparent
+                self.is_cube = model.is_cube
+
+This will lead to some code refactoring, since **we no longer know if a block is a proper cube** or not. To solve this, **we must only render as many faces are are present for this model**; six for cubes, and four for plants, for example. The changes are as such:
+
+In block.py, where we check how many faces to set textures to:
+
+                def set_block_face(face, texture):
+                        if (face > len(self.tex_coords)-1): return
+                        self.tex_coords[face] = self.tex_coords[face].copy()
+
+In world.py, where we consider non-cube models as air blocks. (For example, so that cubes do not render transparent when a plant is on top):
+
+                #Return the block at the local position in the chunk at the chunk position
+                block = self.chunks[chunk_position].blocks[local_x][local_y][local_z]
+                block_type = self.block_types[block]
+
+                if not block_type or block_type.transparent: return 0
+                else: return block
+
+In chunk.py, where we only add as many faces to the mesh as are present in the model:
+
+                if block.is_cube:
+                        if not self.world.get_block_number((x+1, y, z)): add_face(0) # draw right face
+                        if not self.world.get_block_number((x-1, y, z)): add_face(1) # draw left face
+                        if not self.world.get_block_number((x, y+1, z)): add_face(2) # draw top face
+                        if not self.world.get_block_number((x, y-1, z)): add_face(3) # draw bottom face
+                        if not self.world.get_block_number((x, y, z+1)): add_face(4) # draw front face
+                        if not self.world.get_block_number((x, y, z-1)): add_face(5) # draw back face
+                else:
+                        for i in range(len(block.vertex_positions)): add_face(i) # vertex_positions is an array of face arrays
+
+### Transparency
+
+Another thing we must do is **allow for transparency rendering**, since when adding new block models, not all will be fully 16x16x16 pixels. *In OpenGL, we can only render **fragments** as colored **or** transparent, and not both.*
+
+In frag.glsl, we check to see if the fragment's alpha value is 0.0, meaning it is transparent. If this is true, we do not render the fragment.
+
+        vec4 texture_color = texture(texture_array_sampler, interpolated_tex_coords);
+        fragment_color = texture_color * interpolated_shading_values;
+
+        if (texture_color.a == 0.0) { discard; }
+
+In texture_manager.py, we previously prevented blurriness when textures are maximized by disabling linear interpolation blending, instead telling OpenGL to select the nearest pixel's color when sampling. We copy this for textures which are far away, because if those textures have any transparent pixels, OpenGL cannot blend colored and transparent pixels together - while all other color components can be blended, the alpha can only be 0.0 or 1.0, so to keep transparency we also must disable distance blur using the following line:
+
+                gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST) # For minification
+
+When all these changes are made, we add our new block models to world.py, and edit the world generation so that at the top layer, 15, we have the chance to spawn one of our new plant or cactus blocks. For example:
+
+                self.block_types.append(block.Block(self.texture_manager, "rose", {"all": "rose"}, models.plant)) #9
+
+                # (Inside the chunk rendering and block rendering nested loops)
+                if chunk_y == 15: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice(0, 0, 0, 0, 9); #20% of spawning a rose
+
+Which, using the custom values I chose in my simulation, may look like this:
+
+![image info](./images/NewBlockModels.png)
 
 ## 3. Tools Used
 

@@ -41,7 +41,7 @@ class World:
                     for chunk_y in range(chunk.CHUNK_HEIGHT):
                         for chunk_z in range(chunk.CHUNK_LENGTH):
                             if chunk_y == 15: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice(
-									[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 9, 10, 11])
+									[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 9, 9, 10, 11])
                             elif chunk_y > 13: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice([0, 1])
                             else: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choice([0, 0, 3])
 
@@ -70,11 +70,11 @@ class World:
         local_z = int(z % chunk.CHUNK_LENGTH)
 
         #Return the block at the local position in the chunk at the chunk position
-        block_number = self.chunks[chunk_position].blocks[local_x][local_y][local_z]
-        block_type = self.block_types[block_number]
+        block = self.chunks[chunk_position].blocks[local_x][local_y][local_z]
+        block_type = self.block_types[block]
 
         if not block_type or block_type.transparent: return 0
-        else: return block_number
+        else: return block
 
     def draw(self):
         for chunk_position in self.chunks:

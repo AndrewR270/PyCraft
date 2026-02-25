@@ -120,7 +120,7 @@ class Chunk:
                             if not self.world.get_block_number((x, y, z+1)): add_face(4) # draw front face
                             if not self.world.get_block_number((x, y, z-1)): add_face(5) # draw back face
                         else:
-                            for i in range(len(block.vertex_positions)): add_face(i)
+                            for i in range(len(block.vertex_positions)): add_face(i) # vertex_positions is an array of face arrays
 
         #### pash mesh data to gpu ##################################
 

@@ -12,7 +12,5 @@ void main(void) {
     vec4 texture_color = texture(texture_array_sampler, interpolated_tex_coords);
     fragment_color = texture_color * interpolated_shading_values;
 
-    if (texture_color.a == 0.0) {
-        discard;
-    }
+    if (texture_color.a == 0.0) { discard; }
 }
