@@ -49,7 +49,12 @@ Defines all block types present in the simulation. Creates a dictionary of chunk
 
 ### chunk.py
 
-Creates a unified mesh composed of a group of blocks. Each chunk mesh has its own Vertex Array Object (VAO), three Vertex Buffer Objects (VBOs) for vertices, textures, and shading, and an Index Buffer Object (IBO) for accessing the vertices. There is an array of values associated with each of the latter four. When the chunk mesh is updated, the chunk iterates through each block, adding its values and information to the corresponsing arrays. Those arrays are then loaded back into the memory objects. Each chunk has a draw function which will render the mesh.
+Creates a unified mesh composed of a group of blocks. Also contains an array of subchunks which can be accessed for speedier rendering when a single block is edited in the chunk. Each chunk mesh has its own Vertex Array Object (VAO), three Vertex Buffer Objects (VBOs) for vertices, textures, and shading, and an Index Buffer Object (IBO) for accessing the vertices. There is an array of values associated with each of the latter four. When the chunk mesh is updated, the chunk iterates through each block, adding its values and information to the corresponsing arrays. Those arrays are then loaded back into the memory objects. Each chunk has a draw function which will render the mesh.
+
+### subchunk.py
+
+Creates a unified mesh composed of a small group of blocks. Subchunks are contained in a list in each chunk. Contains functions for rendering only the block faces which touch air. The blocks each subchunk can access are found by calculating which blocks fall within a certain area of the parent chunk.
+
 
 ### block.py
 
@@ -66,6 +71,10 @@ Contains the implementation of matrices. A matrix is a set of values we can use 
 ### camera.py
 
 Creates and updates the ModelViewProjection matrix, which is responsible for updating the scene to match our movement. Contains coordinates for position, rotation, and inputs for changing those values every update. The MVP matrix is then passed to the shader to render our graphics with viewing position and angle taken into account.
+
+### hit.py
+
+Handles raycasting - a theoretical ray, q, is created extending from the camera. Allows us to detect which block we are looking at, which can be used to place and destroy blocks at certain locations in the world.
 
 ### shader.py
 
@@ -744,6 +753,104 @@ When all these changes are made, we add our new block models to world.py, and ed
 Which, using the custom values I chose in my simulation, may look like this:
 
 ![image info](./images/NewBlockModels.png)
+
+# Placing and Breaking Blocks
+
+Although chunks accelerate the pace at which we are able to render the world, they are too large to effectively edit on a block-by-block basis. As such, we create the file **subchunk.py** to render groups of 4x4x4 blocks, using **chunk.py** to organize all these subchunks and add their data to our rendering objects for rendering. We still render the world using 16x16x16 chunks, but the work of editing the world during runtime is handled by the 4x4x4 subchunks. The content of these subchunks is obtained by finding the blocks in a chunk which are within the bounds of the subchunk.
+
+**We have had to refactor the code significantly** to implement subchunks. For example, **chunk.py** does not add faces anymore, since it is now handled by **subchunk.py**, but still loads render data into memory and draws it.
+
+### Raycasts
+
+In order to find which block we are looking at, we cast a **ray** from our camera. It will have the same angle as our camera's rotation, and extend from our current camera position. This *ray* is the theoretical vector q, which represents a direct line of sight from our character to a block. We create this in **hit.py**.
+
+In practice, this means finding a unit direction vector, **u**, which we multiply by an incremented distance until its endpoint, **P**, falls within the boundaries of a block. 
+
+We obtain **u** through the x (Rx) and y coordinates (Ry) of our camera rotation: it is equal to < cos(Rx) x cos(Ry), sin(Ry), sin(Rx) x cos(Ry) >.
+We access the tracing point **P** as a *Python list* contaning three coordinates: it is equal to its starting position, the camera, plus the x, y, and z directions of **u** multiplied by the incremented distance.
+
+Each time we increment distance, we call the **step** function. Point **P** travels along **u**, and each step makes the point fall within a block coordinate. Each step, we check to see if there are any blocks neighboring our block coordinate present. Eventually, our **current block** will be air, and our **next block** will be an existing block.
+
+If these two blocks are found, we can do one of three things:
+- **place** a new block **at the current empty block space**
+- **destroy** the existing, neighboring block **at the next block space**,
+- **pick** the existing, neighboring block **at the next block space**
+
+The code in the *main.py* update() function is as follows:
+
+        def on_mouse_press(self, x, y, button, modifiers):
+
+                # call to edit a block
+                def hit_callback(current_block, next_block):
+                        if button == pyglet.window.mouse.RIGHT: self.world.set_block(current_block, self.holding) # place
+                        elif button == pyglet.window.mouse.LEFT: self.world.set_block(next_block, 0) # remove
+                        elif button == pyglet.window.mouse.MIDDLE: self.holding = self.world.get_block_number(next_block) # sample
+
+                hit_ray = hit.Hit_ray(self.world, self.camera.rotation, self.camera.position) # create ray
+
+                while hit_ray.distance < hit.HIT_RANGE: # step through distances in our ray
+                        if hit_ray.step(hit_callback): break
+
+The above code is run **whenever we click our mouse button.** When we click, **a ray will check if there are any blocks within our hit range + 1**. Each time we do so, we **pass the hit_callback function** into hit.py; if we find a block, hit.py will call **hit_callback, which tells the world to update with our changes.**
+
+The function in **world.py** which edits a block in the world is **set_block**, which takes in a **block position to modify** and the **type of block we want to replace it with.** For adding, this will be whatever block type we are holding, while it will be air when we remove a block. 
+
+**The helper functions can all be found in world.py,** and will not be explained much here. Basically:
+- We *divide* block position by chunk size to get the chunk position
+- We take the *modulus* of the block position with the chunk size to get block position within a chunk.
+
+The function first uses the block position to find the chunk we need to modify. A new chunk is made when we need to expand our game world by editing a block that is currently outside of it:
+
+                def set_block(self, position, number):
+                        x,y,z = position # location of the block in the world
+                        chunk_position = self.get_chunk_position(position)
+
+                        # Make new chunk if a non-air block is placed out of bounds
+                        if not chunk_position in self.chunks and number:
+                        self.chunks[chunk_position] = chunk.Chunk(self, chunk_position)
+
+                        # Make no change if the block as the position is already there
+                        if self.get_block_number(position) == number: return
+
+The next step is to **set the new block at the local position in chunk:**
+
+                local_x, local_y, local_z = self.get_local_position(position)
+                self.chunks[chunk_position].blocks[local_x][local_y][local_z] = number
+                self.chunks[chunk_position].update_at_position((x, y, z))
+                self.chunks[chunk_position].update_mesh()
+
+This will add our block to the chunk mesh, or replace an existing block in the mesh with air if we are removing. 
+
+However, we also much check for the case that we are modifying a block at the edge of a chunk. Since we only render faces that are exposed to air on a chunk-specific basis, removing at the end of the chunk will not force the neighboring chunk to update its faces unless we specifically check to see if the block is at the edge of the current chunk, and make the other update as well:
+
+                chunk_x, chunk_y, chunk_z = chunk_position
+
+                def try_update_chunk_mesh_at_position(chunk_position, position):
+                if chunk_position in self.chunks:
+                        self.chunks[chunk_position].update_at_position(position)
+                        self.chunks[chunk_position].update_mesh()
+
+                if local_x == chunk.CHUNK_WIDTH - 1: try_update_chunk_mesh_at_position((chunk_x+1, chunk_y, chunk_z), (x+1, y, z)) # right border
+                elif local_x == 0: try_update_chunk_mesh_at_position((chunk_x-1, chunk_y, chunk_z), (x-1, y, z)) # left border
+
+In the above code, we check if our local block position is on either edge of the chunk on the x axis. If so, we updated the neighboring chunk by passing in the current chunk coordinates + an offset, and the block in that chunk that needs to be updated, equal to our current block + an offset.
+
+### Summary
+
+**The workflow for editing our world follows this path:**
+1. We press a mouse button, creating a ray. This ray creates a direction vector from our camera.
+2. We create a point starting at our camera which travels in steps from the camera to the hit distance.
+3. If the point falls within an air block with neighboring existant blocks, we take action based on our mouse input.
+4. We replace the air block with a new block if we are placing a block, or replace the neighbor block with air if we are removing.
+5. This is done in world.py, where we find which chunk the block belongs to, updating it and any other chunks it touches.
+6. In the chunk, we find the subchunk where that block falls, update the necessary faces, and return it to the parent chunk.
+7. The chunk updates all render data and draws the updates.
+
+After all this is done, we may wind up with something like this!
+
+<video width="100%" height="100%" controls>
+  <source src="./images/PyCraft-Build-Demo.mp4" type="video/mp4">
+</video>
 
 ## 3. Tools Used
 

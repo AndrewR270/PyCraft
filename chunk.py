@@ -1,5 +1,8 @@
 import ctypes
+import math
 import pyglet.gl as gl
+
+import subchunk
 
 CHUNK_WIDTH = 16
 CHUNK_HEIGHT = 16
@@ -9,6 +12,8 @@ class Chunk:
 
     def __init__(self, world, chunk_position):
 
+        self.world = world
+
         self.chunk_position = chunk_position
 
         self.position = (
@@ -17,17 +22,20 @@ class Chunk:
             self.chunk_position[2] * CHUNK_LENGTH
         )
 
-        self.world = world
-
         self.blocks = [[[0 # block number
             for z in range (CHUNK_LENGTH)]
             for y in range (CHUNK_HEIGHT)]
             for x in range (CHUNK_WIDTH)]
         
+        self.subchunks = {}
+
+        for x in range(int(CHUNK_WIDTH / subchunk.SUBCHUNK_WIDTH)):
+            for y in range(int(CHUNK_HEIGHT / subchunk.SUBCHUNK_HEIGHT)):
+                for z in range(int(CHUNK_LENGTH / subchunk.SUBCHUNK_LENGTH)):
+                    self.subchunks[(x,y,z)] = subchunk.Subchunk(self, (x,y,z))
 
         #--- MEMORY OBJECT DATA ARRAYS ------------------------------
 
-        self.has_mesh = False
         self.mesh_vertex_positions = []
         self.mesh_index_counter = 0
         self.mesh_indices = []
@@ -39,23 +47,23 @@ class Chunk:
         #--- VERTEX ARRAY OBJECT (VAO) ------------------------------
  
         self.vao = gl.GLuint(0)
-        gl.glGenVertexArrays(1, ctypes.byref(self.vao))
+        gl.glGenVertexArrays(1, self.vao)
         gl.glBindVertexArray(self.vao)
 
         #--- VERTEX POSITIONS (VBO) ---------------------------------
 
         self.vertex_position_vbo = gl.GLuint(0)
-        gl.glGenBuffers(1, ctypes.byref(self.vertex_position_vbo))
+        gl.glGenBuffers(1, self.vertex_position_vbo)
 
         #--- TEXTURE COORDINATES (VBO) ------------------------------
 
         self.tex_coords_vbo = gl.GLuint(0)
-        gl.glGenBuffers(1, ctypes.byref(self.tex_coords_vbo))
+        gl.glGenBuffers(1, self.tex_coords_vbo)
         
         #--- SHADING VALUES (VBO) -----------------------------------
 
         self.shading_values_vbo = gl.GLuint(0)
-        gl.glGenBuffers(1, ctypes.byref(self.shading_values_vbo))
+        gl.glGenBuffers(1, self.shading_values_vbo)
 
         #--- INDEX BUFFER OBJECT (IBO) ------------------------------
 
@@ -63,69 +71,71 @@ class Chunk:
         gl.glGenBuffers(1, self.ibo)
 
 
+    def update_subchunk_meshes(self):
+        for subchunk_position in self.subchunks:
+            subchunk = self.subchunks[subchunk_position]
+            subchunk.update_mesh()
+
+    def update_at_position(self, position):
+        x, y, z = position
+
+        local_x = int(x % subchunk.SUBCHUNK_WIDTH)
+        local_y = int(y % subchunk.SUBCHUNK_HEIGHT)
+        local_z = int(z % subchunk.SUBCHUNK_LENGTH)
+
+        local_x_chunk, local_y_chunk, local_z_chunk = self.world.get_local_position(position)
+
+        subchunk_x = math.floor(local_x_chunk / subchunk.SUBCHUNK_WIDTH)
+        subchunk_y = math.floor(local_y_chunk / subchunk.SUBCHUNK_HEIGHT)
+        subchunk_z = math.floor(local_z_chunk / subchunk.SUBCHUNK_LENGTH)
+
+        self.subchunks[(subchunk_x, subchunk_y, subchunk_z)].update_mesh()
+
+        def try_update_subchunk_mesh(subchunk_position):
+            if subchunk_position in self.subchunks:
+                self.subchunks[subchunk_position].update_mesh()
+
+        if local_x == subchunk.SUBCHUNK_WIDTH - 1: try_update_subchunk_mesh((subchunk_x+1, subchunk_y, subchunk_z)) # left border
+        elif local_x == 0: try_update_subchunk_mesh((subchunk_x-1, subchunk_y, subchunk_z)) # right border
+
+        if local_y == subchunk.SUBCHUNK_HEIGHT - 1: try_update_subchunk_mesh((subchunk_x, subchunk_y+1, subchunk_z)) # top border
+        elif local_y == 0: try_update_subchunk_mesh((subchunk_x, subchunk_y-1, subchunk_z)) # bottom border
+    
+        if local_z == subchunk.SUBCHUNK_LENGTH - 1: try_update_subchunk_mesh((subchunk_x, subchunk_y, subchunk_z+1)) # far border
+        elif local_z == 0: try_update_subchunk_mesh((subchunk_x, subchunk_y, subchunk_z-1)) # close border
+    
     def update_mesh(self):
-        self.has_mesh = True
+        # combine all subchunks into one big chunk
         self.mesh_vertex_positions = []
-        self.mesh_index_counter = 0
-        self.mesh_indices = []
         self.mesh_tex_coords = []
         self.mesh_shading_values = []
+        self.mesh_indices = []
+        self.mesh_index_counter = 0
 
-        def add_face(face):
-            # update vertices
-            vertex_positions = block.vertex_positions[face].copy()
-            for i in range(4):
-                vertex_positions[i * 3 + 0] += x
-                vertex_positions[i * 3 + 1] += y
-                vertex_positions[i * 3 + 2] += z
+        for subchunk_position in self.subchunks:
+            subchunk = self.subchunks[subchunk_position]
 
-            self.mesh_vertex_positions.extend(vertex_positions)
+            self.mesh_vertex_positions.extend(subchunk.mesh_vertex_positions)
+            self.mesh_tex_coords.extend(subchunk.mesh_tex_coords)
+            self.mesh_shading_values.extend(subchunk.mesh_shading_values)
 
-            # update indices
-            indices = [0, 1, 2, 0, 2, 3]
-            for i in range(6):
-                indices[i] += self.mesh_index_counter
+            mesh_indices = [index + self.mesh_index_counter for index in subchunk.mesh_indices]
+            self.mesh_indices.extend(mesh_indices)
+            self.mesh_index_counter += subchunk.mesh_index_counter
 
-            self.mesh_indices.extend(indices)
-            self.mesh_index_counter += 4
-                        
-            # add texture coordinates and shading values unchanged
-            self.mesh_tex_coords.extend(block.tex_coords[face])
-            self.mesh_shading_values.extend(block.shading_values[face])
+        self.mesh_indices_length = len(self.mesh_indices)
+        self.send_mesh_data_to_gpu()
 
+        del self.mesh_vertex_positions
+        del self.mesh_tex_coords
+        del self.mesh_shading_values
+        del self.mesh_indices
 
-        # loop through each block position in chunk
-        for local_x in range(CHUNK_WIDTH):
-            for local_y in range(CHUNK_HEIGHT):
-                for local_z in range(CHUNK_LENGTH):
+    def send_mesh_data_to_gpu(self):
+    
+        #### pass mesh data to gpu ##################################
 
-                    block_number = self.blocks[local_x][local_y][local_z]
-
-                    # update array if block is not empty
-                    if block_number:
-
-                        block = self.world.block_types[block_number]
-
-                        x,y,z = (
-                            self.position[0] + local_x,
-                            self.position[1] + local_y,
-                            self.position[2] + local_z,
-                        )
-
-                        if block.is_cube:
-                            if not self.world.get_block_number((x+1, y, z)): add_face(0) # draw right face
-                            if not self.world.get_block_number((x-1, y, z)): add_face(1) # draw left face
-                            if not self.world.get_block_number((x, y+1, z)): add_face(2) # draw top face
-                            if not self.world.get_block_number((x, y-1, z)): add_face(3) # draw bottom face
-                            if not self.world.get_block_number((x, y, z+1)): add_face(4) # draw front face
-                            if not self.world.get_block_number((x, y, z-1)): add_face(5) # draw back face
-                        else:
-                            for i in range(len(block.vertex_positions)): add_face(i) # vertex_positions is an array of face arrays
-
-        #### pash mesh data to gpu ##################################
-
-        if not self.mesh_index_counter:
-            return
+        if not self.mesh_index_counter: return
 
         #--- VERTEX ARRAY OBJECT (VAO) ------------------------------
 
@@ -180,10 +190,9 @@ class Chunk:
         gl.glBufferData(
             gl.GL_ELEMENT_ARRAY_BUFFER, # target
             ctypes.sizeof(gl.GLuint * len(self.mesh_indices)), # size
-            (gl.GLuint * len(self.mesh_indices)) (*self.mesh_indices), # data
+            (gl.GLuint * self.mesh_indices_length) (*self.mesh_indices), # data
             gl.GL_STATIC_DRAW # usage
         )
-
 
     def draw(self):
         if not self.mesh_index_counter:
@@ -194,7 +203,7 @@ class Chunk:
         # render primitive using indexed vertex data
         gl.glDrawElements(
             gl.GL_TRIANGLES, # type of primitive to render
-            len(self.mesh_indices), # number of indices
+            self.mesh_indices_length, # number of indices
             gl.GL_UNSIGNED_INT, # data type of indices
             None # pointer to index array
         )

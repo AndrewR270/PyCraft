@@ -22,9 +22,9 @@ class Camera:
         self.shader = shader
         self.shader_matrix_location = self.shader.find_uniform(b"matrix")
 
-        self.position = [0, 0, -3] # Current Position
+        self.position = [0, 0, 0] # Current Position
         self.input = [0, 0, 0] # New Offsets
-        self.rotation = [math.tau / 4, 0]
+        self.rotation = [-math.tau / 4, 0]
 
 
     #
@@ -39,7 +39,7 @@ class Camera:
 
         # Move on X and Z, based on rotation
         if self.input[0] or self.input[2]: # Check at least one component is nonzero
-            angle = self.rotation[0] + math.atan2(self.input[2], self.input[0]) - math.tau / 4
+            angle = self.rotation[0] - math.atan2(self.input[2], self.input[0]) + math.tau / 4
             self.position[0] += math.cos(angle) * multiplier
             self.position[2] += math.sin(angle) * multiplier
 
@@ -66,8 +66,8 @@ class Camera:
         #--- MODEL-VIEW MATRIX --------------------------------------
 
         self.mv_matrix.load_identity()
-        self.mv_matrix.rotate_2d(-(self.rotation[0] - math.tau/4), self.rotation[1])
-        self.mv_matrix.translate(-self.position[0], -self.position[1], self.position[2])
+        self.mv_matrix.rotate_2d(self.rotation[0] + math.tau/4, self.rotation[1])
+        self.mv_matrix.translate(-self.position[0], -self.position[1], -self.position[2])
 
         #--- MODEL-VIEW-PROJECTION MATRIX ---------------------------
 
