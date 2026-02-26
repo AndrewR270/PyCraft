@@ -848,6 +848,8 @@ In the above code, we check if our local block position is on either edge of the
 
 After all this is done, we may wind up with something like this!
 
+(Download video in images. I will fix it to appear here later.)
+
 <video width="100%" height="100%" controls>
   <source src="./images/PyCraft-Build-Demo.mp4" type="video/mp4">
 </video>
