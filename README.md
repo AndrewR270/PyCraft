@@ -680,7 +680,7 @@ After populating our array of chunks, we then update the mesh of each chunk in o
 
 And draw the chunks using the same code, but using draw() instead of update_mesh(). The result looks something like this:
 
-![image info](./images/PyCraft_Demo.png)
+![image info](./images/PyCraft-Demo.png)
 
 There is a tradeoff with chunk size. The **larger the chunk, the less chunks have to be drawn** at one time, but the **more complicated** it becomes to **change** and update the mesh. A **smaller chunk is easier to update**, but **more have to be drawn**.
 
