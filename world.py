@@ -40,11 +40,14 @@ class World:
                 for chunk_x in range(chunk.CHUNK_WIDTH):
                     for chunk_y in range(chunk.CHUNK_HEIGHT):
                         for chunk_z in range(chunk.CHUNK_LENGTH):
+                            block_type = 0
                             # Potential blocks are 0, 9, and 10, with probabilities 20, 2, and 1. Access element 0 of the returned list.
-                            if chunk_y == 15: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = random.choices([0, 8, 9], [20, 2, 1])[0]
-                            elif chunk_y == 14: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = 1
-                            elif chunk_y > 12: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = 2
-                            else: current_chunk.blocks[chunk_x][chunk_y][chunk_z] = 4
+                            if chunk_y == 15: block_type = random.choices([0, 8, 9], [20, 2, 1])[0]
+                            elif chunk_y == 14: block_type = 1
+                            elif chunk_y > 12: block_type = 2
+                            else: block_type = 4
+                            current_chunk.blocks[chunk_x][chunk_y][chunk_z] = block_type
+
 
                 self.chunks[chunk_position] = current_chunk
 
