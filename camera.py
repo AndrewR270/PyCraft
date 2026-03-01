@@ -22,7 +22,7 @@ class Camera:
         self.shader = shader
         self.shader_matrix_location = self.shader.find_uniform(b"matrix")
 
-        self.position = [0, 0, 0] # Current Position
+        self.position = [0, 80, 0] # Current Position
         self.input = [0, 0, 0] # New Offsets
         self.rotation = [-math.tau / 4, 0]
 

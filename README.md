@@ -37,6 +37,11 @@ In order to make the shaders, I had to install **OpenGL**. The Open Graphics Lib
 
 I had to install **GLSL Syntax** for VS Code to apply syntax highlighting to GL Shader Language files. These shaders are essential for this project.
 
+In order to handle world loading from NBT Base 36 file formats, which are used by Minecraft Alpha, I used the following two commands:
+
+                pip install --user nbtlib
+                pip install --user base36
+
 ## 1. Files in this Program
 
 ### main.py
@@ -853,6 +858,52 @@ After all this is done, we may wind up with something like this!
 <video width="100%" height="100%" controls>
   <source src="./images/PyCraft-Build-Demo.mp4" type="video/mp4">
 </video>
+
+# Saving & Loading Worlds
+
+Minecraft stores a set of blocks for each chunk in a separate file. To **load** worlds, we need to **access each chunk file**, convert its byte data into a set of blocks, and **load those blocks into chunks**. To accomplish this, we need to use Python's nbtlib and base36 libraries.
+
+To **save** our world, we create a variable **modified = false** in **chunk.py** which is only **set to true when the set_block function is called** in world.py, meaning the chunk has been edited. We overwrite the data of only the chunks which have been modified.
+
+### Block Types
+
+We also need to expedite the process of defining block types. We can **read from a file** of block types like this:
+
+                blocks_data_file = open("data/blocks.mcpy")
+                blocks_data = blocks_data_file.readlines()
+                blocks_data_file.close()
+
+and split the lines into variables like in various ways, using commands like these:
+
+                number, properties = block_type.split(":", 1) # number is before the colon, properties is after. 1 means it splits only once.
+                for prop in properties.split(","): # separate properties into a set of prop variables by comma
+                prop = prop.strip() # removes spaces around each property
+                prop = list(filter(None, prop.split(' ', 1))) # makes each prop a list with a variable name (0) and its data (1)
+
+Note that the specific characters we are using is specific to the .mcpy format created specially by the original creator, obiwac, for this project.
+
+We can then check to see if prop[0], the name of the variable, is equal to name, texture, or model, assigning the subsequent data to the correct variables before loading into a new block type and adding it to our list of block types. An excerpt of this process is as follows:
+
+                if prop[0] == "model": model = eval(prop[1]) # set model
+                new_block = block.Block(self.texture_manager, name, texture, model)
+                self.block_types.append(new_block)
+
+### World Loading & Saving
+
+**The file used for saving and loading is save.py.** It takes in the current world and a save folder path. Its functions are as follows:
+
+- *chunk_position_to_path*: A Minecraft world is composed of multiple files, each file containing chunk data. This method takes in a chunk position and converts it into a path to find the save file.
+- *load_chunk*: Loads the chunk save file into a list of blocks. Each block is added to a chunk in the chunks array in *world.py*.
+- *load*: Repeatedly calls *load_chunk* for every chunk we want to see in the game.
+- *save_chunk*: Creates a byte array that stores all block types in the current chunk, and uses that array to overwrite the file for the chunk in question. Creates a new chunk file if the chunk is new.
+= *save*: Loops through all chunks in *world.py*'s chunks array, calling *save_chunk* on every modified chunk.
+
+Once all this has been implemented, **we can now load Minecraft worlds.** In *main.py*'s *on_key_press* function in the *Window* class, I set "O" to be the key which calls the saving function. This means we can load up worlds, edit them, and save our changes. Using an example world from obiwac's GitHub, I succesfully loaded the following world:
+
+![image info](./images/LoadedWorld.png)
+
+This means that in *world.py*, **instead of randomizing the contents of each chunk**, we can use our new saving and loading functionality to **construct a world out of pre-created chunks.** This is done in *world.py* by importing *save.py*, making a save object, and calling load(). Since every instance of *save.py* is passed in our world as a parameter, the load function can **access the chunks array** for our world and load in any chunks we like.
+
 
 ## 3. Tools Used
 

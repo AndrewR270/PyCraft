@@ -5,7 +5,7 @@ import pyglet.gl as gl
 import subchunk
 
 CHUNK_WIDTH = 16
-CHUNK_HEIGHT = 16
+CHUNK_HEIGHT = 128
 CHUNK_LENGTH = 16
 
 class Chunk:
@@ -13,6 +13,8 @@ class Chunk:
     def __init__(self, world, chunk_position):
 
         self.world = world
+
+        self.modified = False
 
         self.chunk_position = chunk_position
 

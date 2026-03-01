@@ -140,6 +140,7 @@ class Window(pyglet.window.Window):
         elif key == pyglet.window.key.ESCAPE: 
             self.mouse_captured = False
             self.set_exclusive_mouse(False)
+        elif key == pyglet.window.key.O: self.world.save.save()
 
     #
     # on_key_release - Called upon keyboard release, stops motion. Resets input to 0.
